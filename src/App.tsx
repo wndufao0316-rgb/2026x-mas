@@ -1,0 +1,616 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  BookOpen, ChevronLeft, ChevronRight, Volume2, VolumeX, 
+  Edit3, ListOrdered, Sparkles, Sheet, Plus, CheckCircle2, HelpCircle
+} from 'lucide-react';
+import { BrochureData, ProgramItem, BrochureMetadata } from './types';
+import { initialBrochureData } from './data/defaultProgram';
+import { sounds } from './utils/soundEffects';
+import { BookCover } from './components/BookCover';
+import { WelcomePage } from './components/WelcomePage';
+import { TableOfContents } from './components/TableOfContents';
+import { ProgramPage } from './components/ProgramPage';
+import { EpiloguePage } from './components/EpiloguePage';
+import { SyncSheetModal } from './components/SyncSheetModal';
+import { CodeViewerModal } from './components/CodeViewerModal';
+import { EditImageModal } from './components/EditImageModal';
+import { PhotoViewerModal } from './components/PhotoViewerModal';
+import { EditTextModal } from './components/EditTextModal';
+import { EditMetadataModal } from './components/EditMetadataModal';
+
+const STORAGE_KEY = 'joshua_jeong_praise_brochure_v1';
+
+export default function App() {
+  // 1. Data State with LocalStorage Persistence
+  const [brochureData, setBrochureData] = useState<BrochureData>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {
+      // Fallback
+    }
+    return initialBrochureData;
+  });
+
+  // 2. Navigation State
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [direction, setDirection] = useState<number>(1);
+  const [isFlipping, setIsFlipping] = useState<boolean>(false);
+
+  // 3. Direct Edit & Dialog States (Defaulting to TRUE so user can edit immediately!)
+  const [isEditMode, setIsEditMode] = useState<boolean>(true);
+  const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
+  const [showCodeViewer, setShowCodeViewer] = useState<boolean>(false);
+
+  // 4. Modals for Text Editing & Images
+  const [textModalState, setTextModalState] = useState<{
+    isOpen: boolean;
+    item: ProgramItem | null;
+    field: 'lyrics' | 'commentary' | 'all';
+  }>({
+    isOpen: false,
+    item: null,
+    field: 'lyrics'
+  });
+
+  const [metadataModalState, setMetadataModalState] = useState<{
+    isOpen: boolean;
+    pageType: 'cover' | 'welcome' | 'epilogue' | 'all';
+  }>({
+    isOpen: false,
+    pageType: 'cover'
+  });
+
+  const [imageModalState, setImageModalState] = useState<{
+    isOpen: boolean;
+    itemId: string;
+    currentUrl: string;
+  }>({
+    isOpen: false,
+    itemId: '',
+    currentUrl: ''
+  });
+
+  const [photoViewerState, setPhotoViewerState] = useState<{
+    isOpen: boolean;
+    url: string;
+    title: string;
+    caption?: string;
+  }>({
+    isOpen: false,
+    url: '',
+    title: '',
+    caption: ''
+  });
+
+  // 5. Sound Toggle
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Save to LocalStorage on changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(brochureData));
+    } catch {
+      // Storage quota or private browsing fallback
+    }
+  }, [brochureData]);
+
+  useEffect(() => {
+    sounds.enabled = soundEnabled;
+  }, [soundEnabled]);
+
+  // Sort items in ascending order
+  const sortedItems = useMemo(() => {
+    return [...brochureData.items].sort((a, b) => a.order - b.order);
+  }, [brochureData.items]);
+
+  // Total pages: Cover (0), Welcome (1), TOC (2), Program Items (3 ... 3 + items.length - 1), Epilogue (3 + items.length)
+  const totalPages = 3 + sortedItems.length;
+
+  // Touch Swipe Support with Edit-Safety
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('input') || 
+      target.closest('textarea') || 
+      target.closest('button') || 
+      target.closest('[contenteditable="true"]')
+    ) {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      return;
+    }
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+
+    // Check horizontal swipe
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if (deltaX < 0) {
+        goToNextPage();
+      } else {
+        goToPrevPage();
+      }
+    }
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+  };
+
+  // Keyboard navigation without hijacking text input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+      if (
+        ['input', 'textarea', 'select'].includes(target.tagName.toLowerCase()) || 
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"]')
+      ) {
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        goToNextPage();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        goToPrevPage();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, totalPages]);
+
+  // Page Transitions
+  const goToPage = (pageNumber: number) => {
+    if (pageNumber === currentPage || pageNumber < 0 || pageNumber >= totalPages) return;
+    setDirection(pageNumber > currentPage ? 1 : -1);
+    setIsFlipping(true);
+    if (pageNumber === 0) {
+      sounds.playBookOpen();
+    } else {
+      sounds.playPageFlip();
+    }
+    setCurrentPage(pageNumber);
+    setTimeout(() => setIsFlipping(false), 450);
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 0) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  // Open Book from Cover
+  const handleOpenBook = () => {
+    sounds.playBookOpen();
+    goToPage(1);
+  };
+
+  // Google Sheets Fetching Logic
+  const handleSyncGoogleSheet = async (webAppUrl: string): Promise<boolean> => {
+    try {
+      const response = await fetch(webAppUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+      const data = await response.json();
+      if (data && data.items && Array.isArray(data.items)) {
+        const mappedItems: ProgramItem[] = data.items.map((it: Partial<ProgramItem>, idx: number) => ({
+          id: it.id || `item-sync-${idx + 1}`,
+          order: typeof it.order === 'number' ? it.order : (idx + 1),
+          actTitle: it.actTitle || `제${idx + 1} 순서`,
+          songTitle: it.songTitle || '찬양 곡명',
+          theme: it.theme || '',
+          scripture: it.scripture || '',
+          performer: it.performer || '',
+          imageUrl: it.imageUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80',
+          imageCaption: it.imageCaption || '',
+          lyrics: it.lyrics || '',
+          commentary: it.commentary || '',
+          duration: it.duration || ''
+        }));
+
+        mappedItems.sort((a, b) => a.order - b.order);
+
+        setBrochureData(prev => ({
+          ...prev,
+          items: mappedItems,
+          googleSheetUrl: webAppUrl,
+          lastSynced: new Date().toISOString()
+        }));
+
+        sounds.playChime();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  // Update a single item (inline edits or modal edits)
+  const handleUpdateItem = (updated: ProgramItem) => {
+    setBrochureData(prev => ({
+      ...prev,
+      items: prev.items.map(item => item.id === updated.id ? updated : item)
+    }));
+  };
+
+  // Update brochure metadata
+  const handleUpdateMetadata = (updated: BrochureMetadata) => {
+    setBrochureData(prev => ({
+      ...prev,
+      metadata: updated
+    }));
+  };
+
+  // Add new item
+  const handleAddNewItem = () => {
+    const nextOrder = (brochureData.items.length > 0
+      ? Math.max(...brochureData.items.map(i => i.order))
+      : 0) + 1;
+
+    const newItem: ProgramItem = {
+      id: `prog-${Date.now()}`,
+      order: nextOrder,
+      actTitle: `제${nextOrder}악장 : 새로운 찬양`,
+      songTitle: '새로운 은혜의 찬양',
+      theme: '창조의 섭리를 노래함',
+      scripture: '시편 150:6',
+      performer: '정여호수아 & 찬양팀',
+      imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80',
+      imageCaption: '기록된 찬양과 묵상의 순간',
+      lyrics: '여호와를 찬양하라 그의 위대하심을 찬양하라\n모든 호흡이 있는 자마다 여호와를 찬양할지어다.',
+      commentary: '새롭게 추가된 찬양 순서입니다. 클릭하여 해설과 가사를 수정하세요.',
+      duration: '05:00'
+    };
+
+    setBrochureData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+
+    // Jump to the newly added item page
+    setTimeout(() => {
+      goToPage(2 + brochureData.items.length);
+    }, 100);
+  };
+
+  // Reset to default
+  const handleResetToDefault = () => {
+    setBrochureData(initialBrochureData);
+    localStorage.removeItem(STORAGE_KEY);
+    setCurrentPage(0);
+  };
+
+  // Render current page content
+  const renderCurrentPageContent = () => {
+    if (currentPage === 0) {
+      return (
+        <BookCover
+          metadata={brochureData.metadata}
+          isEditMode={isEditMode}
+          onUpdateMetadata={handleUpdateMetadata}
+          onOpenEditModal={() => setMetadataModalState({ isOpen: true, pageType: 'cover' })}
+          onOpenBook={handleOpenBook}
+        />
+      );
+    }
+
+    if (currentPage === 1) {
+      return (
+        <WelcomePage
+          metadata={brochureData.metadata}
+          isEditMode={isEditMode}
+          onUpdateMetadata={handleUpdateMetadata}
+          onOpenEditModal={() => setMetadataModalState({ isOpen: true, pageType: 'welcome' })}
+          onNextPage={() => goToPage(2)}
+        />
+      );
+    }
+
+    if (currentPage === 2) {
+      return (
+        <TableOfContents
+          items={sortedItems}
+          metadata={brochureData.metadata}
+          onSelectPage={(idx) => goToPage(idx + 3)}
+          isEditMode={isEditMode}
+          onUpdateItem={handleUpdateItem}
+          onAddNewItem={handleAddNewItem}
+          onOpenImageModal={(itemId, url) => setImageModalState({ isOpen: true, itemId, currentUrl: url })}
+        />
+      );
+    }
+
+    // Program items (Page 3 to 3 + items.length - 1)
+    const programIndex = currentPage - 3;
+    if (programIndex >= 0 && programIndex < sortedItems.length) {
+      const item = sortedItems[programIndex];
+      return (
+        <ProgramPage
+          item={item}
+          currentIndex={programIndex}
+          totalCount={sortedItems.length}
+          isEditMode={isEditMode}
+          onUpdateItem={handleUpdateItem}
+          onOpenImageModal={(itemId, url) => setImageModalState({ isOpen: true, itemId, currentUrl: url })}
+          onOpenPhotoViewer={(url, title, caption) => setPhotoViewerState({ isOpen: true, url, title, caption })}
+          onOpenTextModal={(targetItem, field) => setTextModalState({ isOpen: true, item: targetItem, field })}
+        />
+      );
+    }
+
+    // Epilogue Page (Final Page)
+    return (
+      <EpiloguePage
+        metadata={brochureData.metadata}
+        isEditMode={isEditMode}
+        onUpdateMetadata={handleUpdateMetadata}
+        onOpenEditModal={() => setMetadataModalState({ isOpen: true, pageType: 'epilogue' })}
+        onFirstPage={() => goToPage(0)}
+      />
+    );
+  };
+
+  return (
+    <div className="relative min-h-screen w-full bg-natural-ambient flex flex-col items-center justify-center p-2 sm:p-4 overflow-hidden font-serif text-[#3d2b1f]">
+      
+      {/* Background Classical Study & Candle Ambiance */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {/* Warm Ambient Light Glow in Upper Left & Right */}
+        <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-[#8b5e3c]/15 blur-3xl animate-candle" />
+        <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-[#3d2b1f]/30 blur-3xl" />
+        
+        {/* Subtle radial texture */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-[#1a0f08]/40 to-[#1a0f08]/90 pointer-events-none" />
+      </div>
+
+      {/* Top Interactive Banner / Quick Tooltip */}
+      <div className="relative z-30 w-full max-w-[430px] mb-1">
+        {isEditMode ? (
+          <div className="flex items-center justify-between px-3 py-1 bg-amber-900/60 border border-amber-500/40 rounded-lg text-[#fdfaf1] text-[11px] font-sans shadow-md backdrop-blur-xs">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+              <span>화면의 글자를 클릭해 직접 쓰거나 수정하세요</span>
+            </span>
+            <span className="text-[10px] text-amber-200 font-bold bg-amber-800/80 px-1.5 py-0.5 rounded">실시간 수정 중</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-3 py-1 bg-[#2a1b0a]/70 border border-[#8b5e3c]/30 rounded-lg text-[#d7ccc8] text-[11px] font-sans">
+            <span>열람 모드 (우측 상단 ✏️편집 버튼을 눌러 글 작성)</span>
+          </div>
+        )}
+      </div>
+
+      {/* Top Header Controls Bar (Small and compact, with direct Edit button) */}
+      <header className="relative z-30 w-full max-w-[430px] flex items-center justify-between px-2 py-1 mb-1.5 text-xs text-[#e8e4d8]">
+        {/* Left: Concert Mini Badge or TOC Shortcut */}
+        <div className="flex items-center space-x-1.5">
+          <button
+            onClick={() => goToPage(currentPage === 2 ? 0 : 2)}
+            className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#3d2b1f] hover:bg-[#2a1b0a] border border-[#8b5e3c]/40 text-[#fdfaf1] transition-all cursor-pointer shadow-xs text-[11px] font-sans"
+            title="목차(행사 순서)로 바로가기"
+          >
+            <ListOrdered className="w-3.5 h-3.5 text-[#dfba73]" />
+            <span className="font-semibold tracking-tight">
+              {currentPage === 2 ? '표지로' : '행사 순서'}
+            </span>
+          </button>
+
+          {/* Quick Add Song Button (when in edit mode) */}
+          {isEditMode && (
+            <button
+              onClick={handleAddNewItem}
+              className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#8b5e3c] hover:bg-[#3d2b1f] text-[#fdfaf1] transition-all cursor-pointer shadow-xs text-[10.5px] font-sans font-bold"
+              title="새 찬양 순서 추가"
+            >
+              <Plus className="w-3 h-3" />
+              <span>곡 추가</span>
+            </button>
+          )}
+        </div>
+
+        {/* Right: Small Edit Button, Sheet Sync, Sound */}
+        <div className="flex items-center space-x-1.5">
+          {/* Edit Mode Toggle Button (Direct top button) */}
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`flex items-center space-x-1.5 px-3 py-1 rounded-full border transition-all cursor-pointer shadow-xs text-[11px] font-sans font-bold ${
+              isEditMode 
+                ? 'bg-[#dfba73] text-black border-[#dfba73] ring-2 ring-amber-400/40' 
+                : 'bg-[#3d2b1f] hover:bg-[#2a1b0a] text-[#fdfaf1] border-[#8b5e3c]/40'
+            }`}
+            title={isEditMode ? '수정 완료 (클릭하여 뷰 모드로 전환)' : '글귀/내용 직접 수정 모드 켜기'}
+          >
+            <Edit3 className={`w-3.5 h-3.5 ${isEditMode ? 'text-black' : 'text-[#dfba73]'}`} />
+            <span>{isEditMode ? '✏️ 편집 활성' : '편집 모드'}</span>
+          </button>
+
+          {/* Google Sheets Sync Modal Trigger */}
+          <button
+            onClick={() => setShowSyncModal(true)}
+            className="p-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#2a1b0a] border border-[#8b5e3c]/40 text-[#fdfaf1] transition-all cursor-pointer shadow-xs"
+            title="구글 시트 연동 및 데이터 관리"
+          >
+            <Sheet className="w-3.5 h-3.5 text-[#dfba73]" />
+          </button>
+
+          {/* Sound Toggle */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className="p-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#2a1b0a] border border-[#8b5e3c]/40 text-[#fdfaf1] transition-all cursor-pointer shadow-xs"
+            title={soundEnabled ? '효과음 끄기' : '효과음 켜기'}
+          >
+            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5 opacity-60" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Main 9:16 Mobile Brochure Canvas Container with 3D Perspective */}
+      <main
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="relative z-20 w-full max-w-[430px] h-[78vh] max-h-[780px] min-h-[560px] perspective-1200 flex items-center justify-center"
+      >
+        {/* Book Spine Shadow Edge */}
+        <div className="absolute -left-2 top-3 bottom-3 w-4 rounded-l-md bg-gradient-to-r from-black/80 via-[#2a1b0a] to-transparent pointer-events-none z-10 hidden sm:block" />
+
+        {/* 3D Animated Book Flipping Page Card */}
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={currentPage}
+            custom={direction}
+            initial={{
+              rotateY: direction > 0 ? 80 : -80,
+              opacity: 0.3,
+              transformOrigin: direction > 0 ? "left center" : "right center"
+            }}
+            animate={{
+              rotateY: 0,
+              opacity: 1,
+              transformOrigin: "center center"
+            }}
+            exit={{
+              rotateY: direction > 0 ? -80 : 80,
+              opacity: 0.2,
+              transformOrigin: direction > 0 ? "left center" : "right center"
+            }}
+            transition={{
+              duration: 0.42,
+              ease: [0.25, 1, 0.5, 1]
+            }}
+            className="preserve-3d w-full h-full"
+          >
+            {renderCurrentPageContent()}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Floating Side Page Turn Buttons (Desktop & Tablet Ease) */}
+        {currentPage > 0 && (
+          <button
+            onClick={goToPrevPage}
+            className="absolute -left-4 sm:-left-12 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#3d2b1f]/90 hover:bg-[#2a1b0a] border border-[#8b5e3c]/60 text-[#fdfaf1] hover:text-[#dfba73] shadow-xl transition-all cursor-pointer z-30 backdrop-blur-xs"
+            title="이전 페이지"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        {currentPage < totalPages - 1 && (
+          <button
+            onClick={goToNextPage}
+            className="absolute -right-4 sm:-right-12 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#3d2b1f]/90 hover:bg-[#2a1b0a] border border-[#8b5e3c]/60 text-[#fdfaf1] hover:text-[#dfba73] shadow-xl transition-all cursor-pointer z-30 backdrop-blur-xs"
+            title="다음 페이지"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
+      </main>
+
+      {/* Bottom Navigation Ribbon & Page Dots */}
+      <footer className="relative z-30 w-full max-w-[430px] flex flex-col items-center gap-1.5 mt-2 text-xs">
+        {/* Page Dots / Progress bar */}
+        <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#2a1b0a]/80 border border-[#8b5e3c]/30 shadow-md">
+          {Array.from({ length: totalPages }).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => goToPage(idx)}
+              className={`transition-all rounded-full cursor-pointer ${
+                currentPage === idx
+                  ? 'w-4 h-1.5 bg-[#8b5e3c] shadow-sm'
+                  : 'w-1.5 h-1.5 bg-[#8b5e3c]/30 hover:bg-[#8b5e3c]/60'
+              }`}
+              title={`페이지 ${idx + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Page Info text & swipe gesture hint */}
+        <div className="flex items-center justify-between w-full px-4 text-[10.5px] text-[#8b5e3c] font-sans">
+          <span>좌우로 넘겨 책장을 넘기세요</span>
+          <span className="font-bold tracking-widest text-[#d7ccc8]">
+            {currentPage === 0 ? 'COVER' : `${currentPage} / ${totalPages - 1}`}
+          </span>
+        </div>
+      </footer>
+
+      {/* Edit Text Modal for lyrics & commentary */}
+      <EditTextModal
+        isOpen={textModalState.isOpen}
+        onClose={() => setTextModalState(prev => ({ ...prev, isOpen: false }))}
+        item={textModalState.item}
+        field={textModalState.field}
+        onSave={handleUpdateItem}
+      />
+
+      {/* Edit Metadata Modal for Cover, Welcome, Epilogue */}
+      <EditMetadataModal
+        isOpen={metadataModalState.isOpen}
+        onClose={() => setMetadataModalState(prev => ({ ...prev, isOpen: false }))}
+        metadata={brochureData.metadata}
+        pageType={metadataModalState.pageType}
+        onSave={handleUpdateMetadata}
+      />
+
+      {/* Sync Google Sheet Modal */}
+      <SyncSheetModal
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        brochureData={brochureData}
+        onSyncGoogleSheet={handleSyncGoogleSheet}
+        onOpenCodeViewer={() => setShowCodeViewer(true)}
+        onResetToDefault={handleResetToDefault}
+        onImportData={(data) => setBrochureData(data)}
+      />
+
+      {/* Code.gs Viewer Modal */}
+      <CodeViewerModal
+        isOpen={showCodeViewer}
+        onClose={() => setShowCodeViewer(false)}
+      />
+
+      {/* Edit Image Modal */}
+      <EditImageModal
+        isOpen={imageModalState.isOpen}
+        onClose={() => setImageModalState(prev => ({ ...prev, isOpen: false }))}
+        currentUrl={imageModalState.currentUrl}
+        onSave={(newUrl) => {
+          if (imageModalState.itemId) {
+            const item = brochureData.items.find(i => i.id === imageModalState.itemId);
+            if (item) {
+              handleUpdateItem({ ...item, imageUrl: newUrl });
+            }
+          }
+        }}
+      />
+
+      {/* Photo Fullscreen Viewer Modal */}
+      <PhotoViewerModal
+        isOpen={photoViewerState.isOpen}
+        onClose={() => setPhotoViewerState(prev => ({ ...prev, isOpen: false }))}
+        imageUrl={photoViewerState.url}
+        title={photoViewerState.title}
+        caption={photoViewerState.caption}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,6 @@
+{
+  "name": "JOSHUA JEONG PRAISE CONCERT - 운명(運命): 창조의 뜻",
+  "description": "고전적인 서재 분위기와 3D 책장 넘김 효과를 적용한 모바일 찬양 콘서트 인터랙티브 브로슈어",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
