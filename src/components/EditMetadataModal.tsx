@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, BookOpen, Calendar, MapPin, Sparkles, MessageSquare, Heart } from 'lucide-react';
+import { X, Check, Sparkles, MessageSquare, Heart } from 'lucide-react';
 import { BrochureMetadata } from '../types';
 
 interface EditMetadataModalProps {
   isOpen: boolean;
   onClose: () => void;
   metadata: BrochureMetadata;
-  pageType: 'cover' | 'welcome' | 'epilogue' | 'all';
+  pageType: 'cover' | 'welcome' | 'welcome2' | 'epilogue' | 'all';
   onSave: (updated: BrochureMetadata) => void;
 }
 
@@ -22,8 +22,21 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
   const [themeQuote, setThemeQuote] = useState('');
   const [date, setDate] = useState('');
   const [venue, setVenue] = useState('');
+  const [welcomeHeading, setWelcomeHeading] = useState('');
+  const [welcomeSubtitle, setWelcomeSubtitle] = useState('');
+  const [welcomeDedicationHeader, setWelcomeDedicationHeader] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('');
+  
+  const [welcomePage2Heading, setWelcomePage2Heading] = useState('');
+  const [welcomePage2Subtitle, setWelcomePage2Subtitle] = useState('');
+  const [welcomePage2DedicationHeader, setWelcomePage2DedicationHeader] = useState('');
+  const [welcomePage2ImageUrl, setWelcomePage2ImageUrl] = useState('');
+  const [welcomePage2ImageCaption, setWelcomePage2ImageCaption] = useState('');
+  const [welcomePage2Message, setWelcomePage2Message] = useState('');
+
   const [dedicationText, setDedicationText] = useState('');
+  const [tocHeading, setTocHeading] = useState('');
+  const [tocSubtitle, setTocSubtitle] = useState('');
 
   useEffect(() => {
     if (metadata) {
@@ -32,8 +45,21 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
       setThemeQuote(metadata.themeQuote || '');
       setDate(metadata.date || '');
       setVenue(metadata.venue || '');
+      setWelcomeHeading(metadata.welcomeHeading || '초대의 글');
+      setWelcomeSubtitle(metadata.welcomeSubtitle || 'Invocation & Welcome');
+      setWelcomeDedicationHeader(metadata.welcomeDedicationHeader || `"${metadata.concertTitle || '운명(運命): 창조의 뜻'}"에 부쳐`);
       setWelcomeMessage(metadata.welcomeMessage || '');
+
+      setWelcomePage2Heading(metadata.welcomePage2Heading || '초대의 글');
+      setWelcomePage2Subtitle(metadata.welcomePage2Subtitle || 'Reflection & Photo');
+      setWelcomePage2DedicationHeader(metadata.welcomePage2DedicationHeader || '은혜의 여정을 함께하며');
+      setWelcomePage2ImageUrl(metadata.welcomePage2ImageUrl || 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80');
+      setWelcomePage2ImageCaption(metadata.welcomePage2ImageCaption || '아름다운 선율과 기도가 머무는 거룩한 찬양의 처소');
+      setWelcomePage2Message(metadata.welcomePage2Message || '');
+
       setDedicationText(metadata.dedicationText || '');
+      setTocHeading(metadata.tocHeading || '행사 순서');
+      setTocSubtitle(metadata.tocSubtitle || 'Order of Worship');
     }
   }, [metadata, isOpen]);
 
@@ -48,16 +74,27 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
       themeQuote,
       date,
       venue,
+      welcomeHeading,
+      welcomeSubtitle,
+      welcomeDedicationHeader,
       welcomeMessage,
-      dedicationText
+      welcomePage2Heading,
+      welcomePage2Subtitle,
+      welcomePage2DedicationHeader,
+      welcomePage2ImageUrl,
+      welcomePage2ImageCaption,
+      welcomePage2Message,
+      dedicationText,
+      tocHeading,
+      tocSubtitle
     });
     onClose();
   };
 
   const getTitle = () => {
-    if (pageType === 'cover') return '표지 및 행사 정보 직접 수정';
-    if (pageType === 'welcome') return '초대의 글(인사말) 직접 작성 및 수정';
-    if (pageType === 'epilogue') return '에필로그 및 크레딧 직접 작성 및 수정';
+    if (pageType === 'cover') return '고급 책 표지 문구 직접 수정';
+    if (pageType === 'welcome2') return '초대의 글(1: 사진+글귀) 직접 수정';
+    if (pageType === 'welcome') return '초대의 글(2: 본문 인사말) 직접 작성 및 수정';
     return '전체 행사 정보 및 글귀 수정';
   };
 
@@ -91,83 +128,153 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
           {(pageType === 'cover' || pageType === 'all') && (
             <>
               <div className="space-y-1">
-                <label className="font-bold text-[#8b5e3c]">콘서트 메인 제목 (Title)</label>
-                <input
-                  type="text"
-                  value={concertTitle}
-                  onChange={(e) => setConcertTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-bold text-sm focus:outline-none focus:border-[#3d2b1f]"
-                  placeholder="예: 빛의 창조와 부르심"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-[#8b5e3c]">콘서트 부제 / 영문명 (Subtitle)</label>
+                <label className="font-bold text-[#8b5e3c]">표지 상단 작은 글씨 (Header Title)</label>
                 <input
                   type="text"
                   value={concertSubtitle}
                   onChange={(e) => setConcertSubtitle(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] focus:outline-none focus:border-[#3d2b1f]"
-                  placeholder="예: 정여호수아 창작 찬양의 밤"
+                  className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                  placeholder="예: JOSHUA JEONG_PRAISE CONCERT"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-[#8b5e3c]">주제 성경구절 / 표지 글귀</label>
+                <label className="font-bold text-[#8b5e3c]">표지 중앙 메인 큰 글씨 (Main Title - 줄바꿈 지원)</label>
                 <textarea
-                  value={themeQuote}
-                  onChange={(e) => setThemeQuote(e.target.value)}
-                  rows={2}
-                  className="w-full p-2.5 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-batang leading-relaxed focus:outline-none focus:border-[#3d2b1f]"
-                  placeholder="표지에 들어갈 묵상 구절을 입력하세요"
+                  value={concertTitle}
+                  onChange={(e) => setConcertTitle(e.target.value)}
+                  rows={3}
+                  className="w-full p-2.5 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-serif-kr font-bold text-sm leading-relaxed focus:outline-none focus:border-[#3d2b1f]"
+                  placeholder="운명(運命):&#10;창조의 뜻"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-[#8b5e3c] flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>일시</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] focus:outline-none focus:border-[#3d2b1f]"
-                    placeholder="2026. 10. 18 (주일) 저녁 7시"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-[#8b5e3c] flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>장소</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={venue}
-                    onChange={(e) => setVenue(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] focus:outline-none focus:border-[#3d2b1f]"
-                    placeholder="새빛중앙교회 대성전"
-                  />
-                </div>
               </div>
             </>
           )}
 
           {(pageType === 'welcome' || pageType === 'all') && (
-            <div className="space-y-1">
-              <label className="font-bold text-[#8b5e3c] flex items-center gap-1">
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>초대의 글 본문 (줄바꿈 지원)</span>
-              </label>
-              <textarea
-                value={welcomeMessage}
-                onChange={(e) => setWelcomeMessage(e.target.value)}
-                rows={8}
-                className="w-full p-3 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-batang text-xs leading-relaxed focus:outline-none focus:border-[#3d2b1f] resize-y"
-                placeholder="초대의 글 본문을 자유롭게 작성하세요..."
-              />
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-[#8b5e3c]">초대의 글 제목</label>
+                  <input
+                    type="text"
+                    value={welcomeHeading}
+                    onChange={(e) => setWelcomeHeading(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                    placeholder="초대의 글"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-[#8b5e3c]">상단 영문 소제목</label>
+                  <input
+                    type="text"
+                    value={welcomeSubtitle}
+                    onChange={(e) => setWelcomeSubtitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                    placeholder="Invocation & Welcome"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#8b5e3c]">글귀 소제목 (제목에 부쳐 등)</label>
+                <input
+                  type="text"
+                  value={welcomeDedicationHeader}
+                  onChange={(e) => setWelcomeDedicationHeader(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                  placeholder='"운명(運命): 창조의 뜻"에 부쳐'
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#8b5e3c] flex items-center gap-1">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>초대의 글 본문 (줄바꿈 지원)</span>
+                </label>
+                <textarea
+                  value={welcomeMessage}
+                  onChange={(e) => setWelcomeMessage(e.target.value)}
+                  rows={7}
+                  className="w-full p-3 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-batang text-xs leading-relaxed focus:outline-none focus:border-[#3d2b1f] resize-y"
+                  placeholder="초대의 글 본문을 자유롭게 작성하세요..."
+                />
+              </div>
+            </>
+          )}
+
+          {(pageType === 'welcome2' || pageType === 'all') && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-[#8b5e3c]">초대의 글(2) 제목</label>
+                  <input
+                    type="text"
+                    value={welcomePage2Heading}
+                    onChange={(e) => setWelcomePage2Heading(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                    placeholder="초대의 글"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-[#8b5e3c]">상단 영문 소제목</label>
+                  <input
+                    type="text"
+                    value={welcomePage2Subtitle}
+                    onChange={(e) => setWelcomePage2Subtitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                    placeholder="Reflection & Photo"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#8b5e3c]">글귀 소제목 (상단 헤더)</label>
+                <input
+                  type="text"
+                  value={welcomePage2DedicationHeader}
+                  onChange={(e) => setWelcomePage2DedicationHeader(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#3d2b1f]"
+                  placeholder="은혜의 여정을 함께하며"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#8b5e3c]">사진 이미지 URL</label>
+                <input
+                  type="url"
+                  value={welcomePage2ImageUrl}
+                  onChange={(e) => setWelcomePage2ImageUrl(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-mono text-xs focus:outline-none focus:border-[#3d2b1f]"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#8b5e3c]">사진 설명 캡션</label>
+                <input
+                  type="text"
+                  value={welcomePage2ImageCaption}
+                  onChange={(e) => setWelcomePage2ImageCaption(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-sans text-xs focus:outline-none focus:border-[#3d2b1f]"
+                  placeholder="사진 캡션 설명"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#8b5e3c] flex items-center gap-1">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>글귀 내용 (줄바꿈 지원)</span>
+                </label>
+                <textarea
+                  value={welcomePage2Message}
+                  onChange={(e) => setWelcomePage2Message(e.target.value)}
+                  rows={5}
+                  className="w-full p-3 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-[#2a1b0a] font-batang text-xs leading-relaxed focus:outline-none focus:border-[#3d2b1f] resize-y"
+                  placeholder="사진 아래 들어갈 글귀를 작성하세요..."
+                />
+              </div>
+            </>
           )}
 
           {(pageType === 'epilogue' || pageType === 'all') && (

@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
 import { BrochureMetadata } from '../types';
-import { Heart, Sparkles, Share2, BookOpen, Edit2 } from 'lucide-react';
+import { Heart, Share2, Edit2 } from 'lucide-react';
 
 interface EpiloguePageProps {
   metadata: BrochureMetadata;
   isEditMode: boolean;
   onUpdateMetadata: (updated: BrochureMetadata) => void;
   onOpenEditModal: () => void;
-  onFirstPage: () => void;
 }
 
 export const EpiloguePage: React.FC<EpiloguePageProps> = ({
   metadata,
   isEditMode,
   onUpdateMetadata,
-  onOpenEditModal,
-  onFirstPage
+  onOpenEditModal
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -110,16 +108,14 @@ export const EpiloguePage: React.FC<EpiloguePageProps> = ({
         </button>
       </div>
 
-      {/* Bottom Button */}
+      {/* Footer / Page Indicator */}
       <div className="relative z-10 pt-2.5 border-t border-[#3d2b1f]/10 flex items-center justify-between text-[10px] text-[#8b5e3c]/70 font-sans">
-        <button
-          onClick={onFirstPage}
-          className="px-2 py-1 text-[#3d2b1f] hover:text-black font-sans font-bold flex items-center space-x-1 cursor-pointer uppercase"
-        >
-          <BookOpen className="w-3.5 h-3.5 text-[#8b5e3c]" />
-          <span>표지로 돌아가기</span>
-        </button>
-        <span className="font-bold tracking-widest text-[#3d2b1f]">FINIS</span>
+        <span className="tracking-wider uppercase">EPILOGUE</span>
+        <div className="flex gap-1.5 items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]"></div>
+        </div>
       </div>
     </div>
   );

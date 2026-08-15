@@ -3,15 +3,47 @@ import { BrochureData } from '../types';
 export const initialBrochureData: BrochureData = {
   metadata: {
     concertSubtitle: "JOSHUA JEONG_PRAISE CONCERT",
-    concertTitle: "운명(運命): 창조의 뜻",
+    concertTitle: "운명(運命):\n창조의 뜻",
     themeQuote: "우리가 살아도 주를 위하여 살고 죽어도 주를 위하여 죽나니 (롬 14:8)",
     date: "2026. 09. 20 (SUN) PM 6:30",
     venue: "헤리티지 클래식 오디토리움 (Heritage Auditorium)",
+    welcomeHeading: "초대의 글",
+    welcomeSubtitle: "Invocation & Welcome",
+    welcomeDedicationHeader: '"운명(運命): 창조의 뜻"에 부쳐',
     welcomeMessage: `창세 이전부터 예비하신 거룩한 섭리와 부르심 앞에 겸손히 섭니다. 
 우리의 걸음과 호흡 하나하나가 우연이 아닌 ‘창조의 뚜렷한 뜻’이었음을 고백하며, 
-클래식 선율과 깊은 영성의 찬양으로 빚어낸 이 거룩한 시간으로 여러분을 초대합니다.`,
-    dedicationText: `기획·찬양: 정여호수아 (Joshua Jeong)\n오케스트레이션: 헤리티지 필하모닉\n합창: 글로리아 콰이어`
+클래식 선율과 깊은 영성의 찬양으로 빚어낸 이 거룩한 시간으로 여러분을 초대합니다.
+
+어둠 속에서 빛을 부르신 그 첫 음성처럼, 
+오늘 울려 퍼지는 찬양이 우리 삶의 방향을 비추고 
+메마른 심령에 생수의 강을 흘려보내는 은혜의 축복이 되기를 간절히 기도합니다.`,
+    
+    welcomePage2Heading: "초대의 글",
+    welcomePage2Subtitle: "Reflection & Vision",
+    welcomePage2DedicationHeader: "은혜의 여정을 함께 걷는 모든 분들께",
+    welcomePage2ImageUrl: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80",
+    welcomePage2ImageCaption: "아름다운 선율과 기도가 머무는 거룩한 찬양의 처소",
+    welcomePage2Message: `함께 모여 같은 마음으로 주를 바라보는 이 자리가 
+우리에게 가장 큰 위로와 기쁨이 됩니다. 
+무대 위의 선율과 회중의 기도가 하나 되어 
+하늘 보좌에 상달되는 영원한 감사의 고백이 되기를 소망합니다.`,
+
+    dedicationText: `오케스트레이션: 헤리티지 필하모닉\n합창: 글로리아 콰이어\n기획 및 총괄: 헤리티지 프레이즈 위원회`
   },
+  guestbook: [
+    {
+      id: "gb-1",
+      name: "김하늘",
+      message: "창조의 뜻을 묵상하는 귀한 찬양 콘서트에 함께할 수 있어 큰 은혜입니다. 진심으로 축복합니다!",
+      createdAt: "2026. 09. 20 18:40"
+    },
+    {
+      id: "gb-2",
+      name: "이은혜",
+      message: "첫 곡부터 눈물과 감격이 넘칩니다. 모든 순서마다 하나님의 임재가 가득하길 기도합니다.",
+      createdAt: "2026. 09. 20 18:55"
+    }
+  ],
   items: [
     {
       id: "prog-1",
@@ -34,7 +66,7 @@ export const initialBrochureData: BrochureData = {
       songTitle: "진흙 속에 불어넣은 생기",
       theme: "인간 창조와 지명하여 부르신 은혜",
       scripture: "이사야 43:1",
-      performer: "정여호수아 (Solo Baritone) & 첼로 독주",
+      performer: "솔로 바리톤 & 첼로 독주",
       imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
       imageCaption: "토기장이의 손길로 빚어낸 존귀한 생명",
       lyrics: `내가 너를 지명하여 불렀나니 너는 내 것이라\n물 가운데로 지날 때에도 너와 함께하리니\n보잘것없는 흙 한 줌에 담아주신 거룩한 형상\n내 평생의 목적, 오직 당신의 영광을 노래함이라.`,
@@ -62,7 +94,7 @@ export const initialBrochureData: BrochureData = {
       songTitle: "골고다 언덕의 운명적 사랑",
       theme: "십자가의 완성과 구원의 뜻",
       scripture: "요한복음 19:30",
-      performer: "정여호수아 & 글로리아 콰이어",
+      performer: "글로리아 콰이어 & 솔리스트",
       imageUrl: "https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=800&q=80",
       imageCaption: "세상을 구원하기 위해 지신 거룩한 희생의 십자가",
       lyrics: `다 이루었다 선포하신 그 거룩한 순종\n찢기신 살과 흘리신 보혈로 화목을 이루셨네\n창세 전부터 정해진 사랑의 운명\n죽음을 이기시고 부활의 산 소망이 되셨네.`,
@@ -76,7 +108,7 @@ export const initialBrochureData: BrochureData = {
       songTitle: "주의 손에 이끌리어 (Here Am I)",
       theme: "남은 생애를 바치는 결단의 찬양",
       scripture: "로마서 12:1",
-      performer: "정여호수아 & 오케스트라 튜티",
+      performer: "오케스트라 튜티 & 코러스",
       imageUrl: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=80",
       imageCaption: "거룩한 산 제물로 드리는 온전한 삶의 예배",
       lyrics: `주여 내가 여기 있나이다 나를 보내소서\n세상의 헛된 영광 뒤로하고 주의 발자취 좇아가리니\n나의 호흡이 다하는 그 순간까지\n창조의 뜻을 온 세상에 전파하리라.`,

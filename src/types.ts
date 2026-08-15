@@ -13,19 +13,41 @@ export interface ProgramItem {
   duration?: string; // 연주 시간
 }
 
+export interface GuestbookEntry {
+  id: string;
+  name: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface BrochureMetadata {
   concertSubtitle: string; // "JOSHUA JEONG_PRAISE CONCERT"
   concertTitle: string; // "운명(運命): 창조의 뜻"
   themeQuote: string; // "모든 호흡이 있는 자마다 여호와를 찬양할지어다"
   date: string; // "2026. 09. 20 (SUN) 19:00"
   venue: string; // "헤리티지 콘서트홀 (Heritage Hall)"
+  welcomeHeading?: string; // "초대의 글"
+  welcomeSubtitle?: string; // "Invocation & Welcome"
+  welcomeDedicationHeader?: string; // "운명(運命): 창조의 뜻에 부쳐"
   welcomeMessage: string;
+  
+  // Page 3: Welcome with Photo
+  welcomePage2Heading?: string; // "초대의 글"
+  welcomePage2Subtitle?: string; // "Reflection & Photo"
+  welcomePage2DedicationHeader?: string; // "은혜의 여정을 함께하며"
+  welcomePage2ImageUrl?: string; // 사진
+  welcomePage2ImageCaption?: string; // 사진 설명
+  welcomePage2Message?: string; // 글귀
+
   dedicationText: string;
+  tocHeading?: string; // "행사 순서"
+  tocSubtitle?: string; // "Order of Worship"
 }
 
 export interface BrochureData {
   metadata: BrochureMetadata;
   items: ProgramItem[];
+  guestbook?: GuestbookEntry[];
   googleSheetUrl?: string;
   lastSynced?: string;
 }

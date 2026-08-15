@@ -2,24 +2,26 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   BookOpen, ChevronLeft, ChevronRight, Volume2, VolumeX, 
-  Edit3, ListOrdered, Sparkles, Sheet, Plus, CheckCircle2, HelpCircle
+  Edit3, ListOrdered, Sparkles, Sheet, Plus, CloudUpload, Check, AlertCircle
 } from 'lucide-react';
 import { BrochureData, ProgramItem, BrochureMetadata } from './types';
 import { initialBrochureData } from './data/defaultProgram';
 import { sounds } from './utils/soundEffects';
 import { BookCover } from './components/BookCover';
 import { WelcomePage } from './components/WelcomePage';
+import { WelcomePhotoPage } from './components/WelcomePhotoPage';
 import { TableOfContents } from './components/TableOfContents';
 import { ProgramPage } from './components/ProgramPage';
-import { EpiloguePage } from './components/EpiloguePage';
+import { GuestbookPage } from './components/GuestbookPage';
 import { SyncSheetModal } from './components/SyncSheetModal';
 import { CodeViewerModal } from './components/CodeViewerModal';
 import { EditImageModal } from './components/EditImageModal';
 import { PhotoViewerModal } from './components/PhotoViewerModal';
 import { EditTextModal } from './components/EditTextModal';
 import { EditMetadataModal } from './components/EditMetadataModal';
+import { AdminAuthModal } from './components/AdminAuthModal';
 
-const STORAGE_KEY = 'joshua_jeong_praise_brochure_v1';
+const STORAGE_KEY = 'joshua_jeong_praise_brochure_v2';
 
 export default function App() {
   // 1. Data State with LocalStorage Persistence
@@ -27,7 +29,15 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          ...initialBrochureData,
+          ...parsed,
+          metadata: {
+            ...initialBrochureData.metadata,
+            ...(parsed.metadata || {})
+          }
+        };
       }
     } catch {
       // Fallback
@@ -40,10 +50,22 @@ export default function App() {
   const [direction, setDirection] = useState<number>(1);
   const [isFlipping, setIsFlipping] = useState<boolean>(false);
 
-  // 3. Direct Edit & Dialog States (Defaulting to TRUE so user can edit immediately!)
-  const [isEditMode, setIsEditMode] = useState<boolean>(true);
+  // 3. Direct Edit & Dialog States
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  const [showAdminAuthModal, setShowAdminAuthModal] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showCodeViewer, setShowCodeViewer] = useState<boolean>(false);
+  const [isSavingToSheet, setIsSavingToSheet] = useState<boolean>(false);
+  const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Toast notification helper
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastInfo({ message, type });
+    setTimeout(() => {
+      setToastInfo(null);
+    }, 3800);
+  };
 
   // 4. Modals for Text Editing & Images
   const [textModalState, setTextModalState] = useState<{
@@ -58,7 +80,7 @@ export default function App() {
 
   const [metadataModalState, setMetadataModalState] = useState<{
     isOpen: boolean;
-    pageType: 'cover' | 'welcome' | 'epilogue' | 'all';
+    pageType: 'cover' | 'welcome' | 'welcome2' | 'epilogue' | 'all';
   }>({
     isOpen: false,
     pageType: 'cover'
@@ -67,10 +89,12 @@ export default function App() {
   const [imageModalState, setImageModalState] = useState<{
     isOpen: boolean;
     itemId: string;
+    targetField?: 'item' | 'welcome2';
     currentUrl: string;
   }>({
     isOpen: false,
     itemId: '',
+    targetField: 'item',
     currentUrl: ''
   });
 
@@ -107,8 +131,15 @@ export default function App() {
     return [...brochureData.items].sort((a, b) => a.order - b.order);
   }, [brochureData.items]);
 
-  // Total pages: Cover (0), Welcome (1), TOC (2), Program Items (3 ... 3 + items.length - 1), Epilogue (3 + items.length)
-  const totalPages = 3 + sortedItems.length;
+  // Total pages:
+  // 0: Cover
+  // 1: Welcome (Intro I)
+  // 2: Welcome with Photo (Intro II)
+  // 3: Table of Contents (TOC)
+  // 4 ~ 4 + items.length - 1: Program Items
+  // 4 + items.length: Epilogue
+  // 4 + items.length + 1: Guestbook (Final Page)
+  const totalPages = 5 + sortedItems.length;
 
   // Touch Swipe Support with Edit-Safety
   const touchStartXRef = useRef<number | null>(null);
@@ -169,7 +200,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentPage, totalPages]);
 
-  // Page Transitions
+  // Page Transitions (Left Axis Origin)
   const goToPage = (pageNumber: number) => {
     if (pageNumber === currentPage || pageNumber < 0 || pageNumber >= totalPages) return;
     setDirection(pageNumber > currentPage ? 1 : -1);
@@ -180,7 +211,7 @@ export default function App() {
       sounds.playPageFlip();
     }
     setCurrentPage(pageNumber);
-    setTimeout(() => setIsFlipping(false), 450);
+    setTimeout(() => setIsFlipping(false), 500);
   };
 
   const goToNextPage = () => {
@@ -201,7 +232,7 @@ export default function App() {
     goToPage(1);
   };
 
-  // Google Sheets Fetching Logic
+  // Google Sheets Fetching Logic (Sheet -> Web App)
   const handleSyncGoogleSheet = async (webAppUrl: string): Promise<boolean> => {
     try {
       const response = await fetch(webAppUrl, {
@@ -233,16 +264,70 @@ export default function App() {
         setBrochureData(prev => ({
           ...prev,
           items: mappedItems,
+          metadata: data.metadata ? { ...prev.metadata, ...data.metadata } : prev.metadata,
           googleSheetUrl: webAppUrl,
           lastSynced: new Date().toISOString()
         }));
 
         sounds.playChime();
+        showToast('구글 스프레드시트의 최신 행사 순서 및 곡 목록을 불러왔습니다.', 'success');
         return true;
       }
       return false;
-    } catch {
+    } catch (err) {
+      console.error('Fetch Google Sheet error:', err);
+      showToast('구글 시트 불러오기 실패: URL 및 웹앱 배포 권한([모든 사용자])을 확인해주세요.', 'error');
       return false;
+    }
+  };
+
+  // Google Sheets Saving Logic (Web App -> Sheet)
+  const handleSaveToGoogleSheet = async (webAppUrl?: string): Promise<boolean> => {
+    const targetUrl = (webAppUrl || brochureData.googleSheetUrl || '').trim();
+    if (!targetUrl) {
+      setShowSyncModal(true);
+      return false;
+    }
+
+    setIsSavingToSheet(true);
+    try {
+      const payload = {
+        action: 'save',
+        items: brochureData.items,
+        metadata: brochureData.metadata,
+        guestbook: brochureData.guestbook || []
+      };
+
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      let resJson: any = null;
+      try {
+        resJson = await response.json();
+      } catch {
+        // May be opaque redirect from Apps Script
+      }
+
+      setBrochureData(prev => ({
+        ...prev,
+        googleSheetUrl: targetUrl,
+        lastSynced: new Date().toISOString()
+      }));
+
+      sounds.playChime();
+      showToast(resJson?.message || '웹앱에서 수정한 모든 글귀와 사진이 구글 시트에 성공적으로 저장되었습니다!', 'success');
+      return true;
+    } catch (err: any) {
+      console.error('Error saving to Google Sheet:', err);
+      showToast('구글 시트 저장 실패: Google Apps Script 배포 설정 및 Code.gs를 확인해주세요.', 'error');
+      return false;
+    } finally {
+      setIsSavingToSheet(false);
     }
   };
 
@@ -275,7 +360,7 @@ export default function App() {
       songTitle: '새로운 은혜의 찬양',
       theme: '창조의 섭리를 노래함',
       scripture: '시편 150:6',
-      performer: '정여호수아 & 찬양팀',
+      performer: '찬양팀 & 오케스트라',
       imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80',
       imageCaption: '기록된 찬양과 묵상의 순간',
       lyrics: '여호와를 찬양하라 그의 위대하심을 찬양하라\n모든 호흡이 있는 자마다 여호와를 찬양할지어다.',
@@ -294,6 +379,32 @@ export default function App() {
     }, 100);
   };
 
+  // Add new guestbook entry
+  const handleAddGuestbookEntry = (name: string, message: string) => {
+    const now = new Date();
+    const formattedDate = `${now.getFullYear()}. ${String(now.getMonth() + 1).padStart(2, '0')}. ${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const newEntry = {
+      id: `gb-${Date.now()}`,
+      name,
+      message,
+      createdAt: formattedDate
+    };
+
+    setBrochureData(prev => ({
+      ...prev,
+      guestbook: [newEntry, ...(prev.guestbook || [])]
+    }));
+  };
+
+  // Delete guestbook entry
+  const handleDeleteGuestbookEntry = (id: string) => {
+    setBrochureData(prev => ({
+      ...prev,
+      guestbook: (prev.guestbook || []).filter(e => e.id !== id)
+    }));
+  };
+
   // Reset to default
   const handleResetToDefault = () => {
     setBrochureData(initialBrochureData);
@@ -303,6 +414,7 @@ export default function App() {
 
   // Render current page content
   const renderCurrentPageContent = () => {
+    // Page 0: Cover
     if (currentPage === 0) {
       return (
         <BookCover
@@ -315,34 +427,50 @@ export default function App() {
       );
     }
 
+    // Page 1: Welcome Intro I (Photo + Message Box)
     if (currentPage === 1) {
+      return (
+        <WelcomePhotoPage
+          metadata={brochureData.metadata}
+          isEditMode={isEditMode}
+          onUpdateMetadata={handleUpdateMetadata}
+          onOpenEditModal={() => setMetadataModalState({ isOpen: true, pageType: 'welcome2' })}
+          onOpenImageModal={(url) => setImageModalState({ isOpen: true, itemId: '', targetField: 'welcome2', currentUrl: url })}
+          onOpenPhotoViewer={(url, title, caption) => setPhotoViewerState({ isOpen: true, url, title, caption })}
+        />
+      );
+    }
+
+    // Page 2: Welcome Intro II (Text-focused)
+    if (currentPage === 2) {
       return (
         <WelcomePage
           metadata={brochureData.metadata}
           isEditMode={isEditMode}
           onUpdateMetadata={handleUpdateMetadata}
           onOpenEditModal={() => setMetadataModalState({ isOpen: true, pageType: 'welcome' })}
-          onNextPage={() => goToPage(2)}
         />
       );
     }
 
-    if (currentPage === 2) {
+    // Page 3: Table of Contents
+    if (currentPage === 3) {
       return (
         <TableOfContents
           items={sortedItems}
           metadata={brochureData.metadata}
-          onSelectPage={(idx) => goToPage(idx + 3)}
+          onSelectPage={(idx) => goToPage(idx + 4)}
           isEditMode={isEditMode}
           onUpdateItem={handleUpdateItem}
+          onUpdateMetadata={handleUpdateMetadata}
           onAddNewItem={handleAddNewItem}
-          onOpenImageModal={(itemId, url) => setImageModalState({ isOpen: true, itemId, currentUrl: url })}
+          onOpenImageModal={(itemId, url) => setImageModalState({ isOpen: true, itemId, targetField: 'item', currentUrl: url })}
         />
       );
     }
 
-    // Program items (Page 3 to 3 + items.length - 1)
-    const programIndex = currentPage - 3;
+    // Program items (Page 4 to 4 + items.length - 1)
+    const programIndex = currentPage - 4;
     if (programIndex >= 0 && programIndex < sortedItems.length) {
       const item = sortedItems[programIndex];
       return (
@@ -352,21 +480,21 @@ export default function App() {
           totalCount={sortedItems.length}
           isEditMode={isEditMode}
           onUpdateItem={handleUpdateItem}
-          onOpenImageModal={(itemId, url) => setImageModalState({ isOpen: true, itemId, currentUrl: url })}
+          onOpenImageModal={(itemId, url) => setImageModalState({ isOpen: true, itemId, targetField: 'item', currentUrl: url })}
           onOpenPhotoViewer={(url, title, caption) => setPhotoViewerState({ isOpen: true, url, title, caption })}
           onOpenTextModal={(targetItem, field) => setTextModalState({ isOpen: true, item: targetItem, field })}
         />
       );
     }
 
-    // Epilogue Page (Final Page)
+    // Guestbook Page (Final Page: 4 + items.length)
     return (
-      <EpiloguePage
+      <GuestbookPage
         metadata={brochureData.metadata}
+        entries={brochureData.guestbook || []}
         isEditMode={isEditMode}
-        onUpdateMetadata={handleUpdateMetadata}
-        onOpenEditModal={() => setMetadataModalState({ isOpen: true, pageType: 'epilogue' })}
-        onFirstPage={() => goToPage(0)}
+        onAddEntry={handleAddGuestbookEntry}
+        onDeleteEntry={handleDeleteGuestbookEntry}
       />
     );
   };
@@ -384,22 +512,58 @@ export default function App() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-[#1a0f08]/40 to-[#1a0f08]/90 pointer-events-none" />
       </div>
 
-      {/* Top Interactive Banner / Quick Tooltip */}
-      <div className="relative z-30 w-full max-w-[430px] mb-1">
-        {isEditMode ? (
-          <div className="flex items-center justify-between px-3 py-1 bg-amber-900/60 border border-amber-500/40 rounded-lg text-[#fdfaf1] text-[11px] font-sans shadow-md backdrop-blur-xs">
+      {/* Toast Notification Banner */}
+      <AnimatePresence>
+        {toastInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-4 z-50 px-4 py-2.5 rounded-lg shadow-xl text-xs font-sans font-semibold flex items-center space-x-2 border pointer-events-none"
+            style={{
+              backgroundColor: toastInfo.type === 'success' ? '#2a1b0a' : '#5c1d1d',
+              borderColor: toastInfo.type === 'success' ? '#dfba73' : '#e57373',
+              color: '#fdfaf1'
+            }}
+          >
+            {toastInfo.type === 'success' ? (
+              <Check className="w-4 h-4 text-[#dfba73] flex-shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            )}
+            <span>{toastInfo.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Mode Active Guide Banner (Only displayed when editing) */}
+      {isEditMode && (
+        <div className="relative z-30 w-full max-w-[430px] mb-1.5 animate-fadeIn">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-amber-900/80 border border-amber-500/50 rounded-lg text-[#fdfaf1] text-[11px] font-sans shadow-md backdrop-blur-xs">
             <span className="flex items-center gap-1.5 font-medium">
               <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span>화면의 글자를 클릭해 직접 쓰거나 수정하세요</span>
+              <span>화면 글자를 클릭해 직접 쓰거나 수정하세요</span>
             </span>
-            <span className="text-[10px] text-amber-200 font-bold bg-amber-800/80 px-1.5 py-0.5 rounded">실시간 수정 중</span>
+            <div className="flex items-center space-x-1.5">
+              <button
+                onClick={() => handleSaveToGoogleSheet()}
+                disabled={isSavingToSheet}
+                className="text-[10.5px] text-black font-bold bg-[#dfba73] hover:bg-[#ebd097] px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center space-x-1 shadow-xs"
+                title="수정한 모든 글귀와 사진을 구글 스프레드시트에 즉시 반영합니다"
+              >
+                <CloudUpload className={`w-3 h-3 ${isSavingToSheet ? 'animate-bounce' : ''}`} />
+                <span>{isSavingToSheet ? '시트 저장 중...' : '시트에 저장'}</span>
+              </button>
+              <button
+                onClick={() => setIsEditMode(false)}
+                className="text-[10px] text-amber-200 hover:text-white font-bold bg-amber-800/90 hover:bg-black px-2 py-0.5 rounded cursor-pointer transition-colors"
+              >
+                편집 완료
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="flex items-center justify-between px-3 py-1 bg-[#2a1b0a]/70 border border-[#8b5e3c]/30 rounded-lg text-[#d7ccc8] text-[11px] font-sans">
-            <span>열람 모드 (우측 상단 ✏️편집 버튼을 눌러 글 작성)</span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Top Header Controls Bar (Small and compact, with direct Edit button) */}
       <header className="relative z-30 w-full max-w-[430px] flex items-center justify-between px-2 py-1 mb-1.5 text-xs text-[#e8e4d8]">
@@ -431,15 +595,25 @@ export default function App() {
 
         {/* Right: Small Edit Button, Sheet Sync, Sound */}
         <div className="flex items-center space-x-1.5">
-          {/* Edit Mode Toggle Button (Direct top button) */}
+          {/* Edit Mode Toggle Button (Protected by password) */}
           <button
-            onClick={() => setIsEditMode(!isEditMode)}
+            onClick={() => {
+              if (isEditMode) {
+                setIsEditMode(false);
+              } else {
+                if (isAdminAuthenticated) {
+                  setIsEditMode(true);
+                } else {
+                  setShowAdminAuthModal(true);
+                }
+              }
+            }}
             className={`flex items-center space-x-1.5 px-3 py-1 rounded-full border transition-all cursor-pointer shadow-xs text-[11px] font-sans font-bold ${
               isEditMode 
                 ? 'bg-[#dfba73] text-black border-[#dfba73] ring-2 ring-amber-400/40' 
                 : 'bg-[#3d2b1f] hover:bg-[#2a1b0a] text-[#fdfaf1] border-[#8b5e3c]/40'
             }`}
-            title={isEditMode ? '수정 완료 (클릭하여 뷰 모드로 전환)' : '글귀/내용 직접 수정 모드 켜기'}
+            title={isEditMode ? '수정 완료 (클릭하여 뷰 모드로 전환)' : '관리자 편집 모드'}
           >
             <Edit3 className={`w-3.5 h-3.5 ${isEditMode ? 'text-black' : 'text-[#dfba73]'}`} />
             <span>{isEditMode ? '✏️ 편집 활성' : '편집 모드'}</span>
@@ -449,7 +623,7 @@ export default function App() {
           <button
             onClick={() => setShowSyncModal(true)}
             className="p-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#2a1b0a] border border-[#8b5e3c]/40 text-[#fdfaf1] transition-all cursor-pointer shadow-xs"
-            title="구글 시트 연동 및 데이터 관리"
+            title="구글 시트 양방향 연동 (저장 및 불러오기)"
           >
             <Sheet className="w-3.5 h-3.5 text-[#dfba73]" />
           </button>
@@ -465,40 +639,43 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main 9:16 Mobile Brochure Canvas Container with 3D Perspective */}
+      {/* Main 9:16 Mobile Brochure Canvas Container with 3D Left-Axis Book Page Perspective */}
       <main
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        className="relative z-20 w-full max-w-[430px] h-[78vh] max-h-[780px] min-h-[560px] perspective-1200 flex items-center justify-center"
+        className="relative z-20 w-full max-w-[430px] h-[78vh] max-h-[780px] min-h-[560px] perspective-1500 flex items-center justify-center"
       >
-        {/* Book Spine Shadow Edge */}
-        <div className="absolute -left-2 top-3 bottom-3 w-4 rounded-l-md bg-gradient-to-r from-black/80 via-[#2a1b0a] to-transparent pointer-events-none z-10 hidden sm:block" />
+        {/* Book Spine Shadow Edge (Left Hinge Axis Visual Anchor) */}
+        <div className="absolute -left-2 top-2 bottom-2 w-4 rounded-l-md bg-gradient-to-r from-black/90 via-[#2a1b0a] to-transparent pointer-events-none z-30 hidden sm:block" />
 
-        {/* 3D Animated Book Flipping Page Card */}
+        {/* 3D Animated Book Flipping Page Card (Left Axis Anchor) */}
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={currentPage}
             custom={direction}
             initial={{
-              rotateY: direction > 0 ? 80 : -80,
-              opacity: 0.3,
-              transformOrigin: direction > 0 ? "left center" : "right center"
+              rotateY: direction > 0 ? 90 : -90,
+              opacity: 0.1,
+              transformOrigin: "left center"
             }}
             animate={{
               rotateY: 0,
               opacity: 1,
-              transformOrigin: "center center"
+              transformOrigin: "left center"
             }}
             exit={{
-              rotateY: direction > 0 ? -80 : 80,
-              opacity: 0.2,
-              transformOrigin: direction > 0 ? "left center" : "right center"
+              rotateY: direction > 0 ? -90 : 90,
+              opacity: 0.1,
+              transformOrigin: "left center"
             }}
             transition={{
-              duration: 0.42,
-              ease: [0.25, 1, 0.5, 1]
+              duration: 0.48,
+              ease: [0.22, 1, 0.36, 1]
             }}
             className="preserve-3d w-full h-full"
+            style={{
+              transformOrigin: "left center"
+            }}
           >
             {renderCurrentPageContent()}
           </motion.div>
@@ -536,7 +713,7 @@ export default function App() {
               onClick={() => goToPage(idx)}
               className={`transition-all rounded-full cursor-pointer ${
                 currentPage === idx
-                  ? 'w-4 h-1.5 bg-[#8b5e3c] shadow-sm'
+                  ? 'w-4 h-1.5 bg-[#dfba73] shadow-sm'
                   : 'w-1.5 h-1.5 bg-[#8b5e3c]/30 hover:bg-[#8b5e3c]/60'
               }`}
               title={`페이지 ${idx + 1}`}
@@ -546,7 +723,7 @@ export default function App() {
 
         {/* Page Info text & swipe gesture hint */}
         <div className="flex items-center justify-between w-full px-4 text-[10.5px] text-[#8b5e3c] font-sans">
-          <span>좌우로 넘겨 책장을 넘기세요</span>
+          <span>책장을 터치하거나 좌우로 넘기세요</span>
           <span className="font-bold tracking-widest text-[#d7ccc8]">
             {currentPage === 0 ? 'COVER' : `${currentPage} / ${totalPages - 1}`}
           </span>
@@ -577,6 +754,7 @@ export default function App() {
         onClose={() => setShowSyncModal(false)}
         brochureData={brochureData}
         onSyncGoogleSheet={handleSyncGoogleSheet}
+        onSaveToGoogleSheet={handleSaveToGoogleSheet}
         onOpenCodeViewer={() => setShowCodeViewer(true)}
         onResetToDefault={handleResetToDefault}
         onImportData={(data) => setBrochureData(data)}
@@ -594,7 +772,12 @@ export default function App() {
         onClose={() => setImageModalState(prev => ({ ...prev, isOpen: false }))}
         currentUrl={imageModalState.currentUrl}
         onSave={(newUrl) => {
-          if (imageModalState.itemId) {
+          if (imageModalState.targetField === 'welcome2') {
+            handleUpdateMetadata({
+              ...brochureData.metadata,
+              welcomePage2ImageUrl: newUrl
+            });
+          } else if (imageModalState.itemId) {
             const item = brochureData.items.find(i => i.id === imageModalState.itemId);
             if (item) {
               handleUpdateItem({ ...item, imageUrl: newUrl });
@@ -610,6 +793,18 @@ export default function App() {
         imageUrl={photoViewerState.url}
         title={photoViewerState.title}
         caption={photoViewerState.caption}
+      />
+
+      {/* Admin Password Authentication Modal */}
+      <AdminAuthModal
+        isOpen={showAdminAuthModal}
+        onClose={() => setShowAdminAuthModal(false)}
+        onSuccess={() => {
+          setIsAdminAuthenticated(true);
+          setIsEditMode(true);
+          sounds.playChime();
+          showToast('관리자 인증이 완료되었습니다. 편집 모드가 활성화되었습니다.', 'success');
+        }}
       />
     </div>
   );

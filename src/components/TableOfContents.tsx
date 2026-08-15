@@ -9,6 +9,7 @@ interface TableOfContentsProps {
   onSelectPage: (index: number) => void;
   isEditMode: boolean;
   onUpdateItem: (updated: ProgramItem) => void;
+  onUpdateMetadata?: (updated: BrochureMetadata) => void;
   onAddNewItem?: () => void;
   onOpenImageModal: (itemId: string, currentUrl: string) => void;
 }
@@ -19,6 +20,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
   onSelectPage,
   isEditMode,
   onUpdateItem,
+  onUpdateMetadata,
   onAddNewItem,
   onOpenImageModal
 }) => {
@@ -34,11 +36,42 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
       {/* Header Section */}
       <div className="relative z-10 flex justify-between items-end pb-3 mb-2 border-b border-[#3d2b1f]/10">
         <div>
-          <p className="text-[10px] tracking-[0.25em] font-sans text-[#8b5e3c] uppercase font-bold mb-0.5">
-            Order of Worship
+          <p
+            contentEditable={isEditMode}
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              if (isEditMode && onUpdateMetadata) {
+                onUpdateMetadata({
+                  ...metadata,
+                  tocSubtitle: e.currentTarget.textContent?.trim() || metadata.tocSubtitle
+                });
+              }
+            }}
+            className={`text-[10px] tracking-[0.25em] font-sans text-[#8b5e3c] uppercase font-bold mb-0.5 ${
+              isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c] cursor-text' : ''
+            }`}
+            title={isEditMode ? "클릭하여 상단 영문 소제목 수정" : undefined}
+          >
+            {metadata.tocSubtitle || 'Order of Worship'}
           </p>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#2a1b0a] font-serif-kr">
-            행사 순서 <span className="text-xs sm:text-sm font-normal text-[#8b5e3c] font-sans ml-1.5">/ Program</span>
+            <span
+              contentEditable={isEditMode}
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                if (isEditMode && onUpdateMetadata) {
+                  onUpdateMetadata({
+                    ...metadata,
+                    tocHeading: e.currentTarget.textContent?.trim() || metadata.tocHeading
+                  });
+                }
+              }}
+              className={isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c] cursor-text' : ''}
+              title={isEditMode ? "클릭하여 제목 수정" : undefined}
+            >
+              {metadata.tocHeading || '행사 순서'}
+            </span>
+            <span className="text-xs sm:text-sm font-normal text-[#8b5e3c] font-sans ml-1.5">/ Program</span>
           </h2>
         </div>
 
@@ -52,7 +85,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
       {isEditMode && (
         <div className="relative z-10 mb-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#e8e4d8] border border-[#8b5e3c]/30 text-[10px] text-[#5d4037] font-sans font-medium">
           <Sparkles className="w-3 h-3 text-[#8b5e3c]" />
-          <span>수정 모드: 글자와 사진을 클릭하여 직접 변경할 수 있습니다</span>
+          <span>글자나 사진을 클릭하여 즉시 수정할 수 있습니다</span>
         </div>
       )}
 
@@ -108,16 +141,28 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
                   }}
                   onClick={(e) => isEditMode && e.stopPropagation()}
                   className={`text-[10.5px] font-bold text-[#8b5e3c] font-sans tracking-wide uppercase ${
-                    isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c]' : ''
+                    isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c] cursor-text' : ''
                   }`}
+                  title={isEditMode ? "악장/순서명 수정" : undefined}
                 >
                   {item.actTitle}
                 </span>
-                {item.duration && (
-                  <span className="text-[9.5px] text-[#8b5e3c]/70 font-sans">
-                    {item.duration}
-                  </span>
-                )}
+                <span
+                  contentEditable={isEditMode}
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    if (isEditMode) {
+                      onUpdateItem({ ...item, duration: e.currentTarget.textContent || item.duration });
+                    }
+                  }}
+                  onClick={(e) => isEditMode && e.stopPropagation()}
+                  className={`text-[9.5px] text-[#8b5e3c]/70 font-sans ${
+                    isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c] cursor-text' : ''
+                  }`}
+                  title={isEditMode ? "연주 시간 수정" : undefined}
+                >
+                  {item.duration || '05:00'}
+                </span>
               </div>
 
               <h3
@@ -130,10 +175,11 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
                 }}
                 onClick={(e) => isEditMode && e.stopPropagation()}
                 className={`text-sm font-bold font-serif-kr text-[#2a1b0a] truncate mt-0.5 ${
-                  isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c]' : ''
+                  isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c] cursor-text' : ''
                 }`}
+                title={isEditMode ? "곡명 직접 수정" : undefined}
               >
-                {String(item.order).padStart(2, '0')}. {item.songTitle}
+                {item.songTitle}
               </h3>
 
               <p
@@ -146,8 +192,9 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
                 }}
                 onClick={(e) => isEditMode && e.stopPropagation()}
                 className={`text-xs text-[#8b5e3c] truncate font-batang mt-0.5 leading-snug ${
-                  isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c]' : ''
+                  isEditMode ? 'hover:bg-amber-100/80 px-1 rounded outline-none border-b border-dashed border-[#8b5e3c] cursor-text' : ''
                 }`}
+                title={isEditMode ? "곡 부제/주제 직접 수정" : undefined}
               >
                 {item.theme || item.lyrics.split('\n')[0]}
               </p>
@@ -175,11 +222,11 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
 
       {/* Footer Info */}
       <div className="relative z-10 pt-3 border-t border-[#3d2b1f]/10 flex justify-between items-center text-[10px] text-[#8b5e3c]/70 font-sans">
-        <span className="tracking-wider">PAGE 01</span>
+        <span className="tracking-wider">PAGE 03 · PROGRAM ORDER</span>
         <div className="flex gap-1.5 items-center">
           <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]"></div>
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]/20"></div>
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]/20"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3d2b1f]"></div>
         </div>
       </div>
     </div>

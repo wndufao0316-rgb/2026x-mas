@@ -225,7 +225,7 @@ export const ProgramPage: React.FC<ProgramPageProps> = ({
             )}
           </div>
 
-          <div className="text-center px-1">
+          <div className="text-left px-1">
             <p
               contentEditable={isEditMode}
               suppressContentEditableWarning
@@ -240,7 +240,7 @@ export const ProgramPage: React.FC<ProgramPageProps> = ({
                   onOpenTextModal(item, 'lyrics');
                 }
               }}
-              className={`text-xs sm:text-[12.5px] font-serif-kr text-[#3d2b1f] leading-relaxed whitespace-pre-line ${
+              className={`text-xs sm:text-[12.5px] font-serif-kr text-[#3d2b1f] leading-relaxed whitespace-pre-line text-left ${
                 isEditMode 
                   ? 'hover:bg-amber-100/80 p-1.5 rounded outline-none border border-dashed border-[#8b5e3c] cursor-text bg-white/70 shadow-inner' 
                   : ''
@@ -262,7 +262,7 @@ export const ProgramPage: React.FC<ProgramPageProps> = ({
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-sans font-bold text-[#8b5e3c] uppercase tracking-wider flex items-center gap-1">
-                <span>✦ Commentary / 묵상의 글</span>
+                <span>✦ Commentary</span>
               </span>
 
               {isEditMode && onOpenTextModal && (
@@ -305,9 +305,9 @@ export const ProgramPage: React.FC<ProgramPageProps> = ({
 
       {/* Footer / Page Indicator */}
       <div className="relative z-10 pt-2.5 border-t border-[#3d2b1f]/10 flex items-center justify-between text-[10px] text-[#8b5e3c]/70 font-sans">
-        <span className="tracking-wider uppercase">Joshua Jeong Praise</span>
+        <span className="tracking-wider uppercase">PROGRAM NOTE</span>
         <span className="font-bold tracking-widest text-[#3d2b1f]">
-          PAGE {String(currentIndex + 2).padStart(2, '0')} / {String(totalCount + 3).padStart(2, '0')}
+          PAGE {String(currentIndex + 4).padStart(2, '0')} / {String(totalCount + 5).padStart(2, '0')}
         </span>
       </div>
     </div>
