@@ -4,9 +4,9 @@ import {
   BookOpen, ChevronLeft, ChevronRight, Volume2, VolumeX, 
   Edit3, ListOrdered, Sparkles, Sheet, Plus, CloudUpload, Check, AlertCircle
 } from 'lucide-react';
-import { BrochureData, ProgramItem, BrochureMetadata } from './types';
+import { BrochureData, ProgramItem, BrochureMetadata, GuestbookEntry } from './types';
 import { initialBrochureData } from './data/defaultProgram';
-import { fetchLiveGoogleSheetData } from './utils/googleSheetsSync';
+import { fetchLiveGoogleSheetData, sendGuestbookEntryToSheet } from './utils/googleSheetsSync';
 import { sounds } from './utils/soundEffects';
 import { BookCover } from './components/BookCover';
 import { WelcomePage } from './components/WelcomePage';
@@ -58,14 +58,14 @@ export default function App() {
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showCodeViewer, setShowCodeViewer] = useState<boolean>(false);
   const [isSavingToSheet, setIsSavingToSheet] = useState<boolean>(false);
-  const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Toast notification helper
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastInfo({ message, type });
     setTimeout(() => {
       setToastInfo(null);
-    }, 3800);
+    }, 4500);
   };
 
   // 4. Modals for Text Editing & Images
@@ -388,22 +388,67 @@ export default function App() {
     }, 100);
   };
 
-  // Add new guestbook entry
-  const handleAddGuestbookEntry = (name: string, message: string) => {
+  // State for guestbook refreshing
+  const [isRefreshingGuestbook, setIsRefreshingGuestbook] = useState(false);
+
+  // Add new guestbook entry with real-time Google Sheet sync
+  const handleAddGuestbookEntry = async (name: string, message: string) => {
     const now = new Date();
     const formattedDate = `${now.getFullYear()}. ${String(now.getMonth() + 1).padStart(2, '0')}. ${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
-    const newEntry = {
+    const newEntry: GuestbookEntry = {
       id: `gb-${Date.now()}`,
       name,
       message,
       createdAt: formattedDate
     };
 
+    // Immediate local state update for instant UI feedback
     setBrochureData(prev => ({
       ...prev,
       guestbook: [newEntry, ...(prev.guestbook || [])]
     }));
+
+    // Real-time synchronization with Google Sheets (Apps Script Web App)
+    if (brochureData.googleSheetUrl) {
+      try {
+        const syncResult = await sendGuestbookEntryToSheet(brochureData.googleSheetUrl, newEntry);
+        if (syncResult.success) {
+          showToast('방명록이 구글 스프레드시트에 안전하게 실시간 기록되었습니다.', 'success');
+        } else if (syncResult.isSpreadsheetOnly) {
+          showToast('방명록이 등록되었습니다. (구글 시트에 실시간 자동 기록하려면 [설정 > 시트 연동]에서 Apps Script 웹앱 URL을 배포하여 등록해주세요.)', 'info');
+        }
+      } catch (err) {
+        console.warn('Real-time guestbook sync error:', err);
+      }
+    }
+  };
+
+  // Refresh guestbook from Google Sheet
+  const handleRefreshGuestbook = async () => {
+    if (!brochureData.googleSheetUrl) {
+      showToast('연동된 구글 시트 URL이 없습니다.', 'error');
+      return;
+    }
+    
+    setIsRefreshingGuestbook(true);
+    try {
+      const liveData = await fetchLiveGoogleSheetData(brochureData.googleSheetUrl);
+      if (liveData && liveData.guestbook && liveData.guestbook.length > 0) {
+        setBrochureData(prev => ({
+          ...prev,
+          guestbook: liveData.guestbook!
+        }));
+        showToast('구글 시트에서 최신 방명록을 불러왔습니다.', 'success');
+      } else {
+        showToast('방명록이 최신 상태입니다.', 'info');
+      }
+    } catch (e) {
+      console.warn('Refresh guestbook error:', e);
+      showToast('방명록을 불러오는 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsRefreshingGuestbook(false);
+    }
   };
 
   // Delete guestbook entry
@@ -504,6 +549,8 @@ export default function App() {
         isEditMode={isEditMode}
         onAddEntry={handleAddGuestbookEntry}
         onDeleteEntry={handleDeleteGuestbookEntry}
+        onRefreshGuestbook={handleRefreshGuestbook}
+        isRefreshing={isRefreshingGuestbook}
       />
     );
   };
@@ -528,15 +575,17 @@ export default function App() {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-4 z-50 px-4 py-2.5 rounded-lg shadow-xl text-xs font-sans font-semibold flex items-center space-x-2 border pointer-events-none"
+            className="fixed top-4 z-50 max-w-[90vw] sm:max-w-md px-4 py-2.5 rounded-lg shadow-xl text-xs font-sans font-semibold flex items-center space-x-2 border pointer-events-none"
             style={{
-              backgroundColor: toastInfo.type === 'success' ? '#2a1b0a' : '#5c1d1d',
-              borderColor: toastInfo.type === 'success' ? '#dfba73' : '#e57373',
+              backgroundColor: toastInfo.type === 'success' ? '#2a1b0a' : toastInfo.type === 'info' ? '#1f2937' : '#5c1d1d',
+              borderColor: toastInfo.type === 'success' ? '#dfba73' : toastInfo.type === 'info' ? '#93c5fd' : '#e57373',
               color: '#fdfaf1'
             }}
           >
             {toastInfo.type === 'success' ? (
               <Check className="w-4 h-4 text-[#dfba73] flex-shrink-0" />
+            ) : toastInfo.type === 'info' ? (
+              <Sparkles className="w-4 h-4 text-sky-300 flex-shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
             )}

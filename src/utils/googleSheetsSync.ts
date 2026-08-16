@@ -337,7 +337,18 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
           duration: it.duration || ''
         }));
         mappedItems.sort((a, b) => a.order - b.order);
-        return { items: mappedItems, metadata: json.metadata, guestbook: json.guestbook };
+        
+        let gbList: GuestbookEntry[] | undefined = undefined;
+        if (json.guestbook && Array.isArray(json.guestbook)) {
+          gbList = json.guestbook.map((g: any, idx: number) => ({
+            id: g.id || `gb-sheet-${idx + 1}`,
+            name: g.name || '성도',
+            message: g.message || '',
+            createdAt: g.createdAt || ''
+          })).filter((g: GuestbookEntry) => g.message.trim().length > 0);
+        }
+
+        return { items: mappedItems, metadata: json.metadata, guestbook: gbList };
       }
     }
 
@@ -347,3 +358,67 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
     return null;
   }
 }
+
+/**
+ * Sends a newly created guestbook entry directly to Google Apps Script / Google Sheet
+ */
+export async function sendGuestbookEntryToSheet(
+  sheetUrl: string | undefined,
+  entry: GuestbookEntry
+): Promise<{ success: boolean; isSpreadsheetOnly?: boolean; message?: string }> {
+  if (!sheetUrl || !sheetUrl.trim()) {
+    return { success: false, message: '구글 시트 연동 URL이 설정되지 않았습니다.' };
+  }
+
+  const trimmedUrl = sheetUrl.trim();
+
+  // 1. Google Apps Script Web App Endpoint (https://script.google.com/macros/s/.../exec)
+  if (trimmedUrl.includes('script.google.com') || trimmedUrl.includes('/exec')) {
+    try {
+      // Try POST with text/plain (avoids CORS preflight in Google Apps Script)
+      const postPayload = {
+        action: 'add_guestbook',
+        entry: {
+          id: entry.id,
+          name: entry.name,
+          message: entry.message,
+          createdAt: entry.createdAt
+        }
+      };
+
+      const response = await fetch(trimmedUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(postPayload)
+      });
+
+      if (response.ok) {
+        return { success: true, message: '구글 스프레드시트에 방명록이 성공적으로 기록되었습니다.' };
+      }
+    } catch {
+      // If POST hits CORS redirect policy in browser, fallback to GET query param with mode: 'no-cors'
+      try {
+        const getUrl = `${trimmedUrl}${trimmedUrl.includes('?') ? '&' : '?'}action=add_guestbook&name=${encodeURIComponent(entry.name)}&message=${encodeURIComponent(entry.message)}&createdAt=${encodeURIComponent(entry.createdAt)}&_t=${Date.now()}`;
+        await fetch(getUrl, { method: 'GET', mode: 'no-cors' });
+        return { success: true, message: '구글 스프레드시트에 방명록이 기록되었습니다.' };
+      } catch (getErr) {
+        console.error('Fallback GET guestbook save error:', getErr);
+      }
+    }
+  }
+
+  // 2. Direct Spreadsheet URL (docs.google.com/spreadsheets/d/...)
+  // Note: Google Docs read URL cannot directly accept client-side POST writes without Apps Script Web App
+  if (trimmedUrl.includes('docs.google.com/spreadsheets')) {
+    return {
+      success: false,
+      isSpreadsheetOnly: true,
+      message: '현재 구글 시트 URL은 읽기 전용 상태입니다. 실시간 방명록 자동 저장을 위해 [설정 > 시트 연동]에서 Apps Script 웹앱 URL을 배포하여 등록해주세요.'
+    };
+  }
+
+  return { success: false, message: '유효한 연동 URL이 아닙니다.' };
+}
+

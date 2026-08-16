@@ -173,12 +173,43 @@ export const SyncSheetModal: React.FC<SyncSheetModalProps> = ({
                 </label>
                 <input
                   type="url"
-                  placeholder="https://docs.google.com/spreadsheets/d/1Dzu4WZ9qJa4Eq_RYQI2dM6xIFEdlzlTmPQ0UT-TJh70/edit..."
+                  placeholder="https://docs.google.com/spreadsheets/d/... 또는 https://script.google.com/macros/s/.../exec"
                   value={sheetUrl}
                   onChange={(e) => setSheetUrl(e.target.value)}
                   className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-xs text-[#2a1b0a] focus:outline-none focus:border-[#3d2b1f]"
                 />
               </div>
+
+              {/* Status Guide regarding Spreadsheet URL vs Apps Script Web App URL */}
+              {sheetUrl.includes('docs.google.com/spreadsheets') && (
+                <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded text-[11.5px] text-amber-900 leading-relaxed font-sans space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                    <span>💡 방명록 실시간 구글 시트 3번째 탭 자동 기록 안내</span>
+                  </div>
+                  <p>
+                    현재 입력된 주소는 구글 시트 원본 문서 링크입니다.
+                    <br />
+                    웹에서 성도들이 작성한 <strong>방명록이 구글 시트 3번째 탭(방명록)에 실시간으로 자동 저장</strong>되거나 웹앱 수정본을 시트에 쓰려면, 구글 시트 상단 <strong>[확장 프로그램 → Apps Script]</strong>에서 <strong>Code.gs</strong>를 붙여넣고 <strong>[배포 → 웹 앱(모든 사용자)]</strong>으로 발행된 URL을 등록해주세요!
+                  </p>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenCodeViewer();
+                    }}
+                    className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-[#8b5e3c] hover:underline cursor-pointer"
+                  >
+                    <FileCode className="w-3 h-3" />
+                    <span>Apps Script 1분 배포 가이드 & 코드 복사하기 →</span>
+                  </button>
+                </div>
+              )}
+
+              {sheetUrl.includes('script.google.com/macros') && (
+                <div className="p-2 bg-emerald-50 border border-emerald-300 rounded text-[11.5px] text-emerald-800 font-sans flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Apps Script 웹 앱 URL이 연결되어 방명록 실시간 저장 및 양방향 동기화가 완전히 활성화되었습니다.</span>
+                </div>
+              )}
 
               {/* Action Buttons: Save to Sheet / Fetch from Sheet */}
               <div className="grid grid-cols-2 gap-2 pt-1">

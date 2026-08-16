@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { GuestbookEntry, BrochureMetadata } from '../types';
-import { Send, User, MessageSquare, Trash2, Heart } from 'lucide-react';
+import { Send, User, MessageSquare, Trash2, Heart, RotateCw, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
 
 interface GuestbookPageProps {
   metadata: BrochureMetadata;
   entries: GuestbookEntry[];
   isEditMode: boolean;
-  onAddEntry: (name: string, message: string) => void;
+  onAddEntry: (name: string, message: string) => Promise<void> | void;
   onDeleteEntry?: (id: string) => void;
+  onRefreshGuestbook?: () => Promise<void> | void;
+  isRefreshing?: boolean;
 }
 
 export const GuestbookPage: React.FC<GuestbookPageProps> = ({
@@ -16,22 +18,31 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
   entries,
   isEditMode,
   onAddEntry,
-  onDeleteEntry
+  onDeleteEntry,
+  onRefreshGuestbook,
+  isRefreshing = false
 }) => {
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !message.trim()) return;
+    if (!name.trim() || !message.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
-    onAddEntry(name.trim(), message.trim());
     sounds.playChime();
-    setName('');
-    setMessage('');
-    setTimeout(() => setIsSubmitting(false), 300);
+    
+    try {
+      await onAddEntry(name.trim(), message.trim());
+      setName('');
+      setMessage('');
+      setJustSubmitted(true);
+      setTimeout(() => setJustSubmitted(false), 3500);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -48,9 +59,23 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
           <p className="text-[10px] tracking-[0.25em] font-sans text-[#8b5e3c] uppercase font-bold">
             Guestbook & Fellowship
           </p>
-          <div className="flex items-center space-x-1 text-[10px] text-[#8b5e3c] font-sans">
-            <Heart className="w-3 h-3 text-[#dfba73] fill-[#dfba73]" />
-            <span>축복의 나눔</span>
+          <div className="flex items-center space-x-2">
+            {onRefreshGuestbook && (
+              <button
+                type="button"
+                onClick={() => onRefreshGuestbook()}
+                disabled={isRefreshing}
+                className="flex items-center gap-1 text-[10px] text-[#8b5e3c] hover:text-[#2a1b0a] font-sans transition-colors cursor-pointer disabled:opacity-50"
+                title="구글 시트에서 최신 방명록 새로고침"
+              >
+                <RotateCw className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin text-[#dfba73]' : ''}`} />
+                <span>새로고침</span>
+              </button>
+            )}
+            <div className="flex items-center space-x-1 text-[10px] text-[#8b5e3c] font-sans">
+              <Heart className="w-3 h-3 text-[#dfba73] fill-[#dfba73]" />
+              <span>축복의 나눔</span>
+            </div>
           </div>
         </div>
         
@@ -83,8 +108,17 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
               disabled={!name.trim() || !message.trim() || isSubmitting}
               className="px-3.5 py-1.5 bg-[#3d2b1f] hover:bg-black disabled:opacity-40 text-[#fdfaf1] rounded text-xs font-sans font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
             >
-              <Send className="w-3 h-3 text-[#dfba73]" />
-              <span>남기기</span>
+              {isSubmitting ? (
+                <>
+                  <RotateCw className="w-3 h-3 text-[#dfba73] animate-spin" />
+                  <span>기록 중...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3 h-3 text-[#dfba73]" />
+                  <span>남기기</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -99,6 +133,13 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
               maxLength={150}
             />
           </div>
+
+          {justSubmitted && (
+            <div className="flex items-center gap-1.5 text-[11px] text-green-800 font-sans font-medium pt-0.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-700 flex-shrink-0" />
+              <span>방명록이 등록되었습니다. 은혜의 나눔에 감사드립니다.</span>
+            </div>
+          )}
         </form>
 
         {/* Guestbook List Display */}

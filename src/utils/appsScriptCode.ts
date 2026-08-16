@@ -1,28 +1,78 @@
 export const GOOGLE_APPS_SCRIPT_CODE = `/**
  * ====================================================================
  * JOSHUA JEONG_PRAISE CONCERT - [운명: 창조의 뜻]
- * Google Sheets <-> 모바일 브로슈어 웹앱 양방향 연동 스크립트 (Code.gs)
+ * Google Sheets <-> 모바일 브로슈어 웹앱 실시간 양방향 연동 스크립트 (Code.gs)
  * ====================================================================
  * 
- * [설치 및 배포 방법]
- * 1. 구글 드라이브에서 새 'Google 스프레드시트'를 생성합니다.
- * 2. 상단 메뉴 [확장 프로그램] > [Apps Script]를 클릭합니다.
- * 3. 기존 코드를 모두 지우고 본 스크립트(Code.gs) 전체를 복사하여 붙여넣고 저장(Ctrl+S)합니다.
- * 4. 상단 우측 파란색 [배포] 버튼 > [새 배포] 클릭
+ * [스프레드시트 3번째 탭 '방명록' 실시간 자동 연동 배포 4단계 (1분 소요)]
+ * 1. 구글 스프레드시트 상단 메뉴 [확장 프로그램] > [Apps Script]를 클릭합니다.
+ * 2. 기존 코드를 모두 지우고 본 스크립트(Code.gs) 전체를 복사하여 붙여넣고 저장(Ctrl+S)합니다.
+ * 3. 상단 우측 파란색 [배포] 버튼 > [새 배포] 클릭
  *    - 유형 선택: [웹 앱] (톱니바퀴 아이콘)
- *    - 설명: 찬양콘서트 브로슈어 양방향 API
+ *    - 설명: 찬양콘서트 브로슈어 방명록 및 순서 실시간 연동 API
  *    - 다음 사용자로 실행: [나] (본인 계정)
- *    - 액세스 권한이 있는 사용자: [모든 사용자] (Anyone) 필수 선택!
- * 5. [배포] 버튼을 누른 후 생성된 [웹 앱 URL] (https://script.google.com/macros/s/.../exec)을 복사합니다.
- * 6. 브로슈어 웹앱의 [구글 시트 연동]에 URL을 등록하면 웹앱에서 수정한 글귀와 사진이 구글 시트에 즉시 반영됩니다!
+ *    - 액세스 권한이 있는 사용자: [모든 사용자] (Anyone) ★필수 선택★
+ * 4. [배포] 버튼을 누른 후 생성된 [웹 앱 URL] (https://script.google.com/macros/s/.../exec)을 복사합니다.
+ * 5. 브로슈어 웹앱의 [설정 > 구글 시트 연동]에 해당 웹 앱 URL을 등록하면
+ *    웹에서 남긴 모든 방명록이 구글 시트 3번째 탭(방명록)에 즉시 자동 기록됩니다!
  */
 
-// 1. 구글 시트 -> 브로슈어 웹앱 데이터 불러오기 (GET)
+// 3번째 탭 '방명록' 시트 안전 탐색 함수
+function getGuestbookSheet(ss) {
+  var sheet = ss.getSheetByName("방명록");
+  if (sheet) return sheet;
+  var allSheets = ss.getSheets();
+  for (var s = 0; s < allSheets.length; s++) {
+    var sName = allSheets[s].getName();
+    if (sName.indexOf("방명록") !== -1 || sName.toLowerCase().indexOf("guestbook") !== -1) {
+      return allSheets[s];
+    }
+  }
+  // 3번째 탭 (인덱스 2) 반환
+  if (allSheets.length >= 3) {
+    return allSheets[2];
+  }
+  var newSheet = ss.insertSheet("방명록");
+  newSheet.appendRow(["작성일시", "작성자(이름)", "축복의 메시지"]);
+  newSheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#dfba73").setFontColor("#2a1b0a");
+  return newSheet;
+}
+
+// 1. 구글 시트 -> 브로슈어 웹앱 데이터 불러오기 및 방명록 실시간 등록 (GET)
 function doGet(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // 1) 행사 순서 시트 읽기
+    var param = (e && e.parameter) ? e.parameter : {};
+
+    // 1-1. 단일 방명록 실시간 작성 요청 처리 (?action=add_guestbook)
+    if (param.action === "add_guestbook" || param.action === "guestbook") {
+      var name = String(param.name || "익명의 성도").trim();
+      var message = String(param.message || "").trim();
+      var createdAt = String(param.createdAt || formatDate(new Date())).trim();
+
+      if (message) {
+        var gbSheet = getGuestbookSheet(ss);
+        if (gbSheet.getLastRow() === 0) {
+          gbSheet.appendRow(["작성일시", "작성자(이름)", "축복의 메시지"]);
+          gbSheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#dfba73").setFontColor("#2a1b0a");
+        }
+        gbSheet.appendRow([createdAt, name, message]);
+      }
+
+      var gbResult = {
+        status: "success",
+        message: "방명록이 구글 시트 3번째 탭(방명록)에 성공적으로 등록되었습니다.",
+        entry: { name: name, message: message, createdAt: createdAt }
+      };
+
+      if (param.callback) {
+        return ContentService.createTextOutput(param.callback + "(" + JSON.stringify(gbResult) + ");")
+          .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      return createJsonResponse(gbResult);
+    }
+
+    // 1-2. 행사 순서 시트 읽기 (1번째 탭)
     var sheet = ss.getSheetByName("행사순서") || ss.getSheets()[0];
     var data = sheet.getDataRange().getValues();
     var items = [];
@@ -37,7 +87,7 @@ function doGet(e) {
         items.push({
           id: "item-" + (i + 1),
           order: orderNum,
-          actTitle: String(row[1] || ("제" + (i + 1) + " 순서")),
+          actTitle: String(row[1] || ("제" + (i + 1) + "장")),
           songTitle: String(row[2] || "찬양 곡명"),
           theme: String(row[3] || ""),
           scripture: String(row[4] || ""),
@@ -50,14 +100,13 @@ function doGet(e) {
         });
       }
 
-      // 순서 기준 정렬
       items.sort(function(a, b) {
         return a.order - b.order;
       });
     }
 
-    // 2) 행사 정보(메타데이터) 시트 읽기 (존재하는 경우)
-    var metaSheet = ss.getSheetByName("행사정보");
+    // 1-3. 행사 정보(메타데이터) 시트 읽기 (2번째 탭)
+    var metaSheet = ss.getSheetByName("행사정보") || (ss.getSheets().length >= 2 ? ss.getSheets()[1] : null);
     var metadata = {};
     if (metaSheet) {
       var metaData = metaSheet.getDataRange().getValues();
@@ -68,19 +117,40 @@ function doGet(e) {
       }
     }
 
+    // 1-4. 방명록 시트 읽기 (3번째 탭)
+    var guestbookSheet = getGuestbookSheet(ss);
+    var guestbook = [];
+    if (guestbookSheet) {
+      var gbData = guestbookSheet.getDataRange().getValues();
+      if (gbData.length > 1) {
+        for (var g = 1; g < gbData.length; g++) {
+          var gRow = gbData[g];
+          if (gRow[1] || gRow[2]) {
+            guestbook.push({
+              id: "gb-sheet-" + g,
+              createdAt: String(gRow[0] || ""),
+              name: String(gRow[1] || "성도"),
+              message: String(gRow[2] || "")
+            });
+          }
+        }
+        // 최신 방명록이 위로 오도록 역순 정렬
+        guestbook.reverse();
+      }
+    }
+
     var result = {
       status: "success",
       totalCount: items.length,
       syncedAt: new Date().toISOString(),
       items: items,
-      metadata: Object.keys(metadata).length > 0 ? metadata : null
+      metadata: Object.keys(metadata).length > 0 ? metadata : null,
+      guestbook: guestbook
     };
 
-    // JSONP 지원
-    if (e && e.parameter && e.parameter.callback) {
-      var callback = e.parameter.callback;
+    if (param.callback) {
       return ContentService
-        .createTextOutput(callback + "(" + JSON.stringify(result) + ");")
+        .createTextOutput(param.callback + "(" + JSON.stringify(result) + ");")
         .setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
 
@@ -94,29 +164,60 @@ function doGet(e) {
   }
 }
 
-// 2. 브로슈어 웹앱 -> 구글 시트로 수정된 글귀, 사진, 순서 즉시 저장 및 반영 (POST)
+// 2. 브로슈어 웹앱 -> 구글 시트로 방명록 실시간 작성 및 전체 데이터 저장 (POST)
 function doPost(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var payload = {};
     
     if (e && e.postData && e.postData.contents) {
-      payload = JSON.parse(e.postData.contents);
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (pErr) {
+        payload = {};
+      }
     } else if (e && e.parameter && e.parameter.data) {
-      payload = JSON.parse(e.parameter.data);
+      try {
+        payload = JSON.parse(e.parameter.data);
+      } catch (pErr) {
+        payload = {};
+      }
     }
 
+    // 2-1. 단일 방명록 실시간 추가 요청 (action === 'add_guestbook')
+    if (payload.action === "add_guestbook" || payload.action === "guestbook") {
+      var entry = payload.entry || payload;
+      var name = String(entry.name || "익명의 성도").trim();
+      var message = String(entry.message || "").trim();
+      var createdAt = String(entry.createdAt || formatDate(new Date())).trim();
+
+      var gbSheet = getGuestbookSheet(ss);
+      if (gbSheet.getLastRow() === 0) {
+        gbSheet.appendRow(["작성일시", "작성자(이름)", "축복의 메시지"]);
+        gbSheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#dfba73").setFontColor("#2a1b0a");
+      }
+
+      if (message) {
+        gbSheet.appendRow([createdAt, name, message]);
+      }
+
+      return createJsonResponse({
+        status: "success",
+        message: "방명록이 구글 시트 3번째 탭(방명록)에 성공적으로 등록되었습니다!",
+        entry: { name: name, message: message, createdAt: createdAt }
+      });
+    }
+
+    // 2-2. 관리자 전체 데이터 동기화 저장 (action === 'save')
     var items = payload.items || [];
     var metadata = payload.metadata || {};
     var guestbook = payload.guestbook || [];
 
-    // 1) 행사 순서(곡 목록, 사진, 가사, 해설) 시트 업데이트
-    var sheet = ss.getSheetByName("행사순서");
+    // [1] 행사 순서 시트 업데이트 (1번째 탭)
+    var sheet = ss.getSheetByName("행사순서") || ss.getSheets()[0];
     if (!sheet) {
       sheet = ss.insertSheet("행사순서", 0);
     }
-    
-    // 시트 전체 초기화 및 헤더 작성
     sheet.clear();
     var headers = [
       ["순서", "악장구분", "곡명", "테마", "성경구절", "출연진", "사진URL", "사진설명", "가사글귀", "곡해설", "연주시간"]
@@ -127,7 +228,6 @@ function doPost(e) {
       .setFontColor("#2a1b0a");
 
     if (items && items.length > 0) {
-      // 순서 정렬
       items.sort(function(a, b) {
         return (a.order || 0) - (b.order || 0);
       });
@@ -151,7 +251,7 @@ function doPost(e) {
       sheet.getRange(2, 1, rows.length, headers[0].length).setValues(rows);
     }
 
-    // 2) 행사 정보(표지/초대의 글/글귀) 시트 업데이트
+    // [2] 행사 정보 시트 업데이트 (2번째 탭)
     if (metadata && Object.keys(metadata).length > 0) {
       var metaSheet = ss.getSheetByName("행사정보");
       if (!metaSheet) {
@@ -188,23 +288,20 @@ function doPost(e) {
       metaSheet.getRange(2, 1, metaRows.length, 3).setValues(metaRows);
     }
 
-    // 3) 방명록 시트 업데이트
+    // [3] 방명록 시트 업데이트 (3번째 탭)
     if (guestbook && guestbook.length > 0) {
-      var gbSheet = ss.getSheetByName("방명록");
-      if (!gbSheet) {
-        gbSheet = ss.insertSheet("방명록");
-      }
+      var gbSheet = getGuestbookSheet(ss);
       gbSheet.clear();
       gbSheet.getRange(1, 1, 1, 3).setValues([["작성일시", "작성자(이름)", "축복의 메시지"]])
         .setFontWeight("bold")
         .setBackground("#dfba73")
         .setFontColor("#2a1b0a");
 
-      var gbRows = guestbook.map(function(entry) {
+      var gbRows = guestbook.map(function(ent) {
         return [
-          entry.createdAt || "",
-          entry.name || "",
-          entry.message || ""
+          ent.createdAt || "",
+          ent.name || "",
+          ent.message || ""
         ];
       });
       gbSheet.getRange(2, 1, gbRows.length, 3).setValues(gbRows);
@@ -212,9 +309,8 @@ function doPost(e) {
 
     return createJsonResponse({
       status: "success",
-      message: "웹앱에서 수정한 모든 글귀와 사진이 구글 시트에 성공적으로 반영되었습니다!",
-      savedAt: new Date().toISOString(),
-      itemCount: items.length
+      message: "웹앱에서 수정한 모든 내용과 방명록이 구글 시트에 성공적으로 반영되었습니다!",
+      savedAt: new Date().toISOString()
     });
 
   } catch (error) {
@@ -223,6 +319,15 @@ function doPost(e) {
       message: "구글 시트 저장 중 오류가 발생했습니다: " + error.toString()
     });
   }
+}
+
+function formatDate(d) {
+  var year = d.getFullYear();
+  var month = ("0" + (d.getMonth() + 1)).slice(-2);
+  var day = ("0" + d.getDate()).slice(-2);
+  var hours = ("0" + d.getHours()).slice(-2);
+  var minutes = ("0" + d.getMinutes()).slice(-2);
+  return year + ". " + month + ". " + day + " " + hours + ":" + minutes;
 }
 
 function createJsonResponse(data) {
