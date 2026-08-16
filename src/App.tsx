@@ -22,7 +22,7 @@ import { EditTextModal } from './components/EditTextModal';
 import { EditMetadataModal } from './components/EditMetadataModal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 
-const STORAGE_KEY = 'joshua_jeong_praise_brochure_v3';
+const STORAGE_KEY = 'joshua_jeong_praise_brochure_v4';
 
 export default function App() {
   // 1. Data State with LocalStorage Persistence

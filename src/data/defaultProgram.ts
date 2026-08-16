@@ -67,104 +67,122 @@ export const initialBrochureData: BrochureData = {
     {
       id: "prog-1",
       order: 1,
-      actTitle: "서곡 (Overture)",
-      songTitle: "태초의 빛과 생명의 숨결 (Fiat Lux)",
-      theme: "창조의 서막과 하나님의 영광",
+      actTitle: "제1장",
+      songTitle: "Part 1. 창조",
+      theme: "태초에 하나님의 말씀이 있었으니",
       scripture: "창세기 1:1-3",
-      performer: "헤리티지 심포니 오케스트라 & 파이프 오르간",
-      imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
-      imageCaption: "혼돈과 흑암 속에서 울려 퍼지는 첫 번째 창조의 빛",
-      lyrics: `어둠을 가르고 울리는 거룩한 음성
-"빛이 있으라" 하시매 온 우주가 깨어나고
-바람과 파도, 별들의 노래가 시작되네
-우리의 심장에 뛰는 창조주의 맥박을 느끼며.`,
-      commentary: `장엄한 파이프 오르간의 저음과 현악기의 유려한 선율로 무(無)에서 유(有)로 피어나는 우주의 웅장한 창조를 묘사합니다. 우주 만물의 탄생을 통해 우리 존재의 근원을 묵상합니다.`,
-      duration: "6:15"
+      performer: "영상",
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/2/29/The_Creation_of_Adam_perspective_fix.jpg?utm_source=ko.wikipedia.org&utm_campaign=index&utm_content=original",
+      imageCaption: "천지창조",
+      lyrics: "♬메인 테마곡 : 천지창조",
+      commentary: `태초에 하나님 말씀으로 천지를 창조하셨습니다.
+“빛이 있으라!” 하시니 빛이 있었고,
+“궁창이 있어 물과 물로 나뉘라” 하시어 하늘을 창조하셨으며,
+“땅과 물을 나뉘어 땅엔 식물들이 있으라.” 하시니 채소 열매 맺는 나무가,
+“해와 달과 별들을 창조”하셔 계절과 시간을 알 수 있게 하셨다.
+다섯 번째 날에는 “바다에 물고기, 하늘에는 새들”을 창조하셨으며,
+“땅에 모든 동물들을 창조, 자기 형상대로 남자 여자를 창조”하시고 만물을 주관하고 다스려라! 하시며 천지창조를 마치시고 거룩하고 복 되게 하시며 안식 하셨다.`,
+      duration: "5:00"
     },
     {
       id: "prog-2",
       order: 2,
-      actTitle: "제1악장 : 소명 (Vocation)",
-      songTitle: "진흙 속에 불어넣은 생기",
-      theme: "인간 창조와 지명하여 부르신 은혜",
-      scripture: "이사야 43:1",
-      performer: "솔로 바리톤 & 첼로 독주",
-      imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
-      imageCaption: "토기장이의 손길로 빚어낸 존귀한 생명",
-      lyrics: `내가 너를 지명하여 불렀나니 너는 내 것이라
-물 가운데로 지날 때에도 너와 함께하리니
-보잘것없는 흙 한 줌에 담아주신 거룩한 형상
-내 평생의 목적, 오직 당신의 영광을 노래함이라.`,
-      commentary: `인간을 흙으로 빚으시고 그 코에 생기를 불어넣으신 하나님의 애틋한 사랑을 깊은 바리톤 솔로와 애수 어린 첼로로 표현한 곡입니다.`,
-      duration: "5:40"
+      actTitle: "제2장",
+      songTitle: "Part 2. 인생, 문제의 연속",
+      theme: "나의 운명은 정해져 있는 걸까?",
+      scripture: "-",
+      performer: "드라마",
+      imageUrl: "https://v1.padlet.pics/1/image.webp?t=c_limit%2Cdpr_2%2Ch_975%2Cw_975&url=https%3A%2F%2Fpadlet-artifacts.storage.googleapis.com%2F42298654b1115a557fbb8f2d23cda8ae1a5f17d2%2Fcc0be69a7f4d5eff276360d5ef831012-h-b038cad86043d91a1ffe1bee651b9bf1.png",
+      imageCaption: "인생, 문제의 연속",
+      lyrics: "-",
+      commentary: `누구나 한 번쯤 문득 멈춰 서서 묻게 됩니다.
+‘정말 사람의 운명은 정해져 있는 걸까?’, ‘내 인생은 어디로 향하고 있을까…’
+남들처럼 평범하게 살고 싶었을 뿐인데, 돌아보면 늘 '흘러가는 대로' 살아온 날들에 씁쓸한 후회가 남습니다. 또한 열심히 살았다고 생각했는데 어느 순간 밀려오는 공허함은 SNS 속 반짝이는 타인의 행복을 볼 때마다 내 삶의 무게는 더욱 무겁게만 느껴집니다.
+
+인생, 희로애락의 연속이라지만
+우리에게 허락된 삶은 기쁨과 즐거움보다 슬픔과 노여움이 더 잦았던 것 같습니다.
+불안하고, 흔들리고, 때로는 숨이 턱끝까지 차오르는 날들.
+
+하지만 그 무거운 마음 뒤에는 간절한 소망이 숨어 있습니다.
+‘이렇게 살고 싶지 않다. 내 삶을 가치 있게 가꾸고 싶다.’ 고.
+
+여기,
+지친 마음을 다잡고, 삶의 진짜 의미를 찾아 한 걸음 내딛으려는 사람들의 이야기가 지금 시작됩니다.`,
+      duration: "7:00"
     },
     {
       id: "prog-3",
       order: 3,
-      actTitle: "제2악장 : 연단 (Wilderness)",
-      songTitle: "광야의 밤, 약속의 등불",
-      theme: "침묵 속에서 빚어가시는 섭리",
-      scripture: "신명기 8:2",
-      performer: "어쿠스틱 앙상블 & 코러스",
-      imageUrl: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=800&q=80",
-      imageCaption: "거친 광야 길에서 오직 별빛과 구름기둥을 따르며",
-      lyrics: `길이 보이지 않던 메마른 땅에서도
-한 걸음마다 만나와 반석의 물을 내시며
-나를 낮추시고 시험하사 마침내 복을 주려 하심이라
-밤이 깊을수록 새벽별은 더욱 찬란히 빛나리.`,
-      commentary: `고난과 연단의 시련조차 하나님의 거룩한 계획 속에서 우리를 정금같이 연단하시는 과정임을 감사의 고백으로 풀어냅니다.`,
-      duration: "4:55"
+      actTitle: "제3장",
+      songTitle: "Part 3. 인생, 그 해답의 열쇠",
+      theme: "주가 답이다",
+      scripture: "누가복음5:1~11/요한복음4:3~26",
+      performer: "연극",
+      imageUrl: "https://v1.padlet.pics/3/image.webp?t=c_limit%2Cdpr_2%2Ch_858%2Cw_1528&url=https%3A%2F%2Fu1.padletusercontent.com%2Fuploads%2Fpadlet-uploads-usc1%2F3595956822%2Ff7076eb826a9de1e135ed7f64179cee3%2F_______.jpg%3Fexpiry_token%3D5WaHZRdGG3LkUVQGy3SZ-zdRtq89aJeottSBaF_Hii8dmxJqYDvE2-MDbblcM-ZrVekXW99RReKkJFIoMoKio3NJ0jCaoHwy2GIar5z9BT9aWvld3VWLKlbKfrsBtskwOAJQ-2ZYThjxMRZRbz4_DbyjG1gsw_035kU6y-u9c_LmS7uw-psgo5gVp6QV2w7clRaSj1ct3BVivLQUIAreyA%3D%3D",
+      imageCaption: "베드로와 사마리아 여인",
+      lyrics: "♬메인 테마곡 : 주가 답이다",
+      commentary: `-베드로 이야기
+♬ 생명 길을 찾았네
+♬ 사랑은 휴거다
+
+-사마리아 여인
+♬ 주를 알았네`,
+      duration: "25:00"
     },
     {
       id: "prog-4",
       order: 4,
-      actTitle: "제3악장 : 구속 (Redemption)",
-      songTitle: "골고다 언덕의 운명적 사랑",
-      theme: "십자가의 완성과 구원의 뜻",
-      scripture: "요한복음 19:30",
-      performer: "글로리아 콰이어 & 솔리스트",
-      imageUrl: "https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=800&q=80",
-      imageCaption: "세상을 구원하기 위해 지신 거룩한 희생의 십자가",
-      lyrics: `다 이루었다 선포하신 그 거룩한 순종
-찢기신 살과 흘리신 보혈로 화목을 이루셨네
-창세 전부터 정해진 사랑의 운명
-죽음을 이기시고 부활의 산 소망이 되셨네.`,
-      commentary: `창조의 뜻이 궁극적으로 도달하는 십자가 구속의 절정. 콰이어의 웅장한 화성과 함께 감격스러운 은혜의 파도가 회중을 감쌉니다.`,
-      duration: "7:10"
+      actTitle: "제4장",
+      songTitle: "Part 4. 인생, 창조 그 목적",
+      theme: "창조의 목적을 이루는 사랑",
+      scripture: "창세기1:26",
+      performer: "챔버 합차단",
+      imageUrl: "https://v1.padlet.pics/1/image.webp?t=c_limit%2Cdpr_2%2Ch_975%2Cw_975&url=https%3A%2F%2Fpadlet-artifacts.storage.googleapis.com%2F197296600b2e75724a7870b17614f13e78e2b2cd%2F3354ce8b46d6336fcafa7c9780df6760-h-334ca637d0fe42d325e0270fdcefe60b.png",
+      imageCaption: "인생, 창조 그 목적",
+      lyrics: "♬메인 테마곡 : 창조의 목적을 이루는 사랑",
+      commentary: "말씀 주제 :",
+      duration: "25:00"
     },
     {
       id: "prog-5",
       order: 5,
-      actTitle: "제4악장 : 헌신 (Consecration)",
-      songTitle: "주의 손에 이끌리어 (Here Am I)",
-      theme: "남은 생애를 바치는 결단의 찬양",
-      scripture: "로마서 12:1",
-      performer: "오케스트라 튜티 & 코러스",
-      imageUrl: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=80",
-      imageCaption: "거룩한 산 제물로 드리는 온전한 삶의 예배",
-      lyrics: `주여 내가 여기 있나이다 나를 보내소서
-세상의 헛된 영광 뒤로하고 주의 발자취 좇아가리니
-나의 호흡이 다하는 그 순간까지
-창조의 뜻을 온 세상에 전파하리라.`,
-      commentary: `콘서트의 클라이맥스로, 구원받은 성도로서 세상 속에서 거룩한 청지기로 살아갈 것을 다짐하는 결단의 고백입니다.`,
-      duration: "5:30"
+      actTitle: "제5장",
+      songTitle: "Part 5. END, AND",
+      theme: "나의 운명이 정해져 있을까?",
+      scripture: "-",
+      performer: "영상",
+      imageUrl: "https://v1.padlet.pics/1/image.webp?t=c_limit%2Cdpr_2%2Ch_975%2Cw_975&url=https%3A%2F%2Fpadlet-artifacts.storage.googleapis.com%2F128d528fe41131dce98f3bad95df7b039d04fb45%2F4f5a2a010fb48af998f172ad1318d53b-h-23b07c53106e6d0e1db639c05d66a4d6.png",
+      imageCaption: "인생은 두 갈래 길이 있다",
+      lyrics: "-",
+      commentary: `‘운명(運命)’.
+모든 것이 미리 정해져 있다는 그 차가운 단어 뒤에는,
+움직일 운(運), 목숨 명(命)이라는 가슴 뛰는 진실이 숨겨져 있습니다.
+인간을 지배하는 절대적인 힘으로만 여겨졌던 굴레가 아니라, 우리의 의지와 노력으로 흐름을 바꾸고 새롭게 빚어낼 수 있는 거룩한 기회입니다.
+그리고 그 기적은 멀리 있지 않습니다.`,
+      duration: "5:00"
     },
     {
       id: "prog-6",
       order: 6,
-      actTitle: "피날레 (Finale & Doxology)",
-      songTitle: "창조주를 향한 영원한 송축 (Hallelujah Chorus)",
-      theme: "모든 만물의 영원한 찬송",
-      scripture: "요한계시록 4:11",
-      performer: "전 출연진 & 전 회중 다 함께",
-      imageUrl: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80",
-      imageCaption: "하늘과 땅이 하나 되어 올리는 영원한 찬양의 대합창",
-      lyrics: `할렐루야 주 하나님 전능하신 이가 통치하시도다
-영광과 존귀와 능력이 세세토록 무궁하시도다
-만유의 주재시오 영원하신 왕께
-영원무궁토록 찬양과 경배를 돌릴지어다!`,
-      commentary: `모든 연주자와 회중이 기립하여 한목소리로 영원하신 창조주 하나님을 찬양하며 대단원의 막을 내립니다.`,
-      duration: "6:45"
+      actTitle: "제6장",
+      songTitle: "Part 6. 화동",
+      theme: "전체 영광",
+      scripture: "시편150:6",
+      performer: "찬양단&전체",
+      imageUrl: "https://v1.padlet.pics/1/image.webp?t=c_limit%2Cdpr_2%2Ch_975%2Cw_975&url=https%3A%2F%2Fpadlet-artifacts.storage.googleapis.com%2Fc50de8d5349e91619b77bc093b3a37ba68c121e3%2F6dd4a24503c3f7146cd2b2a43ab6c8b6-h-16fadccf7cf33a0518e80a62851f6831.png",
+      imageCaption: "기쁨의 영광",
+      lyrics: "♬사랑의 목적을 이루었네",
+      commentary: `♬기쁘다 구주 오셨네_전체 영광
+*전체 기립 해주세요
+
+▶ 레크레이션
+- 감사트리 쓰기
+- 사연 추첨 및 발표
+
+▶ 합심 기도 및 목회자 축복 기도
+▶ ending 영상
+▶ 사진 촬영`,
+      duration: "40:00"
     }
   ]
 };

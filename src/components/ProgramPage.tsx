@@ -210,7 +210,7 @@ export const ProgramPage: React.FC<ProgramPageProps> = ({
           
           <div className="flex items-center justify-between mb-1.5 px-1">
             <span className="text-[9.5px] font-sans tracking-[0.2em] text-[#8b5e3c] font-bold uppercase">
-              Lyrics & Praise
+              Information
             </span>
             
             {isEditMode && onOpenTextModal && (

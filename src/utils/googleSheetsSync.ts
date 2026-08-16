@@ -85,22 +85,45 @@ export function convertCsvRowsToProgramItems(rows: string[][]): ProgramItem[] {
   const headers = rows[0].map(h => h.trim().replace(/\s+/g, ''));
   const dataRows = rows.slice(1);
 
-  // Column index resolvers
-  const getColIndex = (keywords: string[]): number => {
-    return headers.findIndex(h => keywords.some(k => h.includes(k)));
+  // Robust column index resolvers with exact matching first and positional fallback
+  const getColIndex = (keywords: string[], fallbackPos?: number): number => {
+    // 1. Exact match (ignoring case)
+    const exactIdx = headers.findIndex(h => keywords.some(k => h.toLowerCase() === k.toLowerCase()));
+    if (exactIdx !== -1) return exactIdx;
+
+    // 2. Partial match (avoiding false positive collisions like '설명' matching '사진설명')
+    const partialIdx = headers.findIndex(h => {
+      const lower = h.toLowerCase();
+      return keywords.some(k => {
+        const kLower = k.toLowerCase();
+        if ((kLower === '설명' || kLower === '해설') && lower.includes('사진')) return false;
+        if (kLower === '사진' && (lower.includes('설명') || lower.includes('url') || lower.includes('링크'))) return false;
+        return lower.includes(kLower);
+      });
+    });
+    if (partialIdx !== -1) return partialIdx;
+
+    // 3. Positional fallback if valid
+    if (fallbackPos !== undefined && headers.length > fallbackPos) {
+      return fallbackPos;
+    }
+    return -1;
   };
 
-  const idxOrder = getColIndex(['순서', 'order', '번호']);
-  const idxActTitle = getColIndex(['악장구분', '악장', 'actTitle', '파트', 'part']);
-  const idxSongTitle = getColIndex(['곡명', '제목', 'songTitle', '찬양곡']);
-  const idxTheme = getColIndex(['테마', '소제목', 'theme']);
-  const idxScripture = getColIndex(['성경구절', '성경', 'scripture', '말씀']);
-  const idxPerformer = getColIndex(['출연진', '찬양자', 'performer', '연주자']);
-  const idxImageUrl = getColIndex(['사진URL', '사진url', 'imageUrl', '이미지', '사진']);
-  const idxImageCaption = getColIndex(['사진설명', '캡션', 'imageCaption']);
-  const idxLyrics = getColIndex(['가사글귀', '가사', 'lyrics', '글귀', '본문']);
-  const idxCommentary = getColIndex(['곡해설', '해설', '묵상', 'commentary', '설명']);
-  const idxDuration = getColIndex(['연주시간', '시간', 'duration', '소요시간']);
+  // Google Sheet Column Layout for 행사순서:
+  // A(0): 순서, B(1): 악장구분, C(2): 곡명, D(3): 테마, E(4): 성경구절,
+  // F(5): 출연진, G(6): 사진URL, H(7): 사진설명, I(8): 가사글귀, J(9): 곡해설, K(10): 연주시간
+  const idxOrder = getColIndex(['순서', 'order', '번호', 'no'], 0);
+  const idxActTitle = getColIndex(['악장구분', '악장', 'acttitle', 'act', '파트', 'part', '구분'], 1);
+  const idxSongTitle = getColIndex(['곡명', '제목', 'songtitle', 'title', '찬양곡'], 2);
+  const idxTheme = getColIndex(['테마', '소제목', 'theme'], 3);
+  const idxScripture = getColIndex(['성경구절', '성경', 'scripture', '말씀'], 4);
+  const idxPerformer = getColIndex(['출연진', '찬양자', 'performer', '연주자', '출연'], 5);
+  const idxImageUrl = getColIndex(['사진url', 'imageurl', '사진링크', '이미지url', '사진'], 6);
+  const idxImageCaption = getColIndex(['사진설명', 'imagecaption', '사진설명글', '캡션'], 7);
+  const idxLyrics = getColIndex(['가사글귀', '가사', 'lyrics', '글귀', '본문'], 8);
+  const idxCommentary = getColIndex(['곡해설', '해설', '묵상', 'commentary', '곡설명', '설명'], 9);
+  const idxDuration = getColIndex(['연주시간', 'duration', '소요시간', '시간'], 10);
 
   return dataRows
     .filter(row => row.some(c => c.trim().length > 0))
@@ -116,6 +139,7 @@ export function convertCsvRowsToProgramItems(rows: string[][]): ProgramItem[] {
         : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80';
       const imageCaption = idxImageCaption !== -1 && row[idxImageCaption] ? row[idxImageCaption].trim() : '';
       const lyrics = idxLyrics !== -1 && row[idxLyrics] ? row[idxLyrics].trim() : '';
+      // J열: 곡해설 (Commentary)
       const commentary = idxCommentary !== -1 && row[idxCommentary] ? row[idxCommentary].trim() : '';
       const duration = idxDuration !== -1 && row[idxDuration] ? row[idxDuration].trim() : '';
 
