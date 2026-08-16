@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { BrochureData, ProgramItem, BrochureMetadata, GuestbookEntry } from './types';
 import { initialBrochureData } from './data/defaultProgram';
-import { fetchLiveGoogleSheetData, sendGuestbookEntryToSheet } from './utils/googleSheetsSync';
+import { fetchLiveGoogleSheetData, sendGuestbookEntryToSheet, mergeGuestbookEntries } from './utils/googleSheetsSync';
 import { sounds } from './utils/soundEffects';
 import { BookCover } from './components/BookCover';
 import { WelcomePage } from './components/WelcomePage';
@@ -245,7 +245,7 @@ export default function App() {
               ...prev,
               items: result.items && result.items.length > 0 ? result.items : prev.items,
               metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-              guestbook: result.guestbook && result.guestbook.length > 0 ? result.guestbook : prev.guestbook,
+              guestbook: mergeGuestbookEntries(result.guestbook || [], prev.guestbook || []),
               googleSheetUrl: url,
               lastSynced: new Date().toISOString()
             }));
@@ -273,7 +273,7 @@ export default function App() {
           ...prev,
           items: result.items && result.items.length > 0 ? result.items : prev.items,
           metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-          guestbook: result.guestbook && result.guestbook.length > 0 ? result.guestbook : prev.guestbook,
+          guestbook: mergeGuestbookEntries(result.guestbook || [], prev.guestbook || []),
           googleSheetUrl: targetUrl,
           lastSynced: new Date().toISOString()
         }));
@@ -434,12 +434,12 @@ export default function App() {
     setIsRefreshingGuestbook(true);
     try {
       const liveData = await fetchLiveGoogleSheetData(brochureData.googleSheetUrl);
-      if (liveData && liveData.guestbook && liveData.guestbook.length > 0) {
+      if (liveData && liveData.guestbook) {
         setBrochureData(prev => ({
           ...prev,
-          guestbook: liveData.guestbook!
+          guestbook: mergeGuestbookEntries(liveData.guestbook || [], prev.guestbook || [])
         }));
-        showToast('구글 시트에서 최신 방명록을 불러왔습니다.', 'success');
+        showToast('구글 시트에서 최신 방명록을 성공적으로 동기화했습니다.', 'success');
       } else {
         showToast('방명록이 최신 상태입니다.', 'info');
       }

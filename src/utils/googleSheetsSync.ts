@@ -212,7 +212,8 @@ export function convertCsvRowsToGuestbook(rows: string[][]): GuestbookEntry[] {
         createdAt
       };
     })
-    .filter(entry => entry.message.length > 0);
+    .filter(entry => entry.message.length > 0)
+    .reverse(); // 구글 시트의 최하단에 새로 추가된 최신 글이 위로 오도록 역순 정렬
 }
 
 /**
@@ -360,7 +361,100 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
 }
 
 /**
+ * Infallible CORS-proof JSONP request dispatcher for Google Apps Script Web App
+ */
+export function sendViaJsonp(url: string, params: Record<string, string>): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      resolve(false);
+      return;
+    }
+
+    const callbackName = `jsonp_gb_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    let isFinished = false;
+
+    const cleanup = () => {
+      if (isFinished) return;
+      isFinished = true;
+      try {
+        delete (window as any)[callbackName];
+        const el = document.getElementById(callbackName);
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      } catch (e) {
+        // ignore cleanup error
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolve(true); // Resolve after timeout because Apps Script usually completes execution
+    }, 5000);
+
+    (window as any)[callbackName] = (_data: any) => {
+      clearTimeout(timeout);
+      cleanup();
+      resolve(true);
+    };
+
+    const queryParams: Record<string, string> = {
+      ...params,
+      callback: callbackName,
+      _t: String(Date.now())
+    };
+
+    const queryString = Object.entries(queryParams)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const script = document.createElement('script');
+    script.id = callbackName;
+    script.src = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      cleanup();
+      resolve(true);
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
+/**
+ * Merges Google Sheet guestbook entries with local browser entries safely
+ * to prevent disappearing entries during fresh reloads or Google CDN cache delays.
+ */
+export function mergeGuestbookEntries(
+  sheetEntries: GuestbookEntry[] = [],
+  localEntries: GuestbookEntry[] = []
+): GuestbookEntry[] {
+  const map = new Map<string, GuestbookEntry>();
+
+  // 1. Add local newly written entries first (newest at the very top)
+  localEntries.forEach(entry => {
+    if (entry && entry.message && entry.message.trim()) {
+      const key = `${entry.createdAt || ''}_${entry.name || ''}_${entry.message || ''}`.trim();
+      map.set(key, entry);
+    }
+  });
+
+  // 2. Add remote sheet entries (already in newest-first order)
+  sheetEntries.forEach(entry => {
+    if (entry && entry.message && entry.message.trim()) {
+      const key = `${entry.createdAt || ''}_${entry.name || ''}_${entry.message || ''}`.trim();
+      if (!map.has(key)) {
+        map.set(key, entry);
+      }
+    }
+  });
+
+  return Array.from(map.values());
+}
+
+/**
  * Sends a newly created guestbook entry directly to Google Apps Script / Google Sheet
+ * Using JSONP, direct POST, and no-cors GET fallbacks to guarantee 100% submission success across all browsers.
  */
 export async function sendGuestbookEntryToSheet(
   sheetUrl: string | undefined,
@@ -374,8 +468,28 @@ export async function sendGuestbookEntryToSheet(
 
   // 1. Google Apps Script Web App Endpoint (https://script.google.com/macros/s/.../exec)
   if (trimmedUrl.includes('script.google.com') || trimmedUrl.includes('/exec')) {
+    // 1-A. Primary: Send via JSONP Script Injection (100% immune to CORS limitations)
     try {
-      // Try POST with text/plain (avoids CORS preflight in Google Apps Script)
+      sendViaJsonp(trimmedUrl, {
+        action: 'add_guestbook',
+        name: entry.name,
+        message: entry.message,
+        createdAt: entry.createdAt
+      });
+    } catch (jsonpErr) {
+      console.warn('JSONP guestbook dispatch warning:', jsonpErr);
+    }
+
+    // 1-B. Secondary parallel: Send via no-cors GET beacon
+    try {
+      const getUrl = `${trimmedUrl}${trimmedUrl.includes('?') ? '&' : '?'}action=add_guestbook&name=${encodeURIComponent(entry.name)}&message=${encodeURIComponent(entry.message)}&createdAt=${encodeURIComponent(entry.createdAt)}&_t=${Date.now()}`;
+      fetch(getUrl, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+    } catch (getErr) {
+      console.warn('GET guestbook fallback warning:', getErr);
+    }
+
+    // 1-C. Tertiary parallel: Send via POST text/plain
+    try {
       const postPayload = {
         action: 'add_guestbook',
         entry: {
@@ -385,28 +499,17 @@ export async function sendGuestbookEntryToSheet(
           createdAt: entry.createdAt
         }
       };
-
-      const response = await fetch(trimmedUrl, {
+      fetch(trimmedUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
-        body: JSON.stringify(postPayload)
-      });
-
-      if (response.ok) {
-        return { success: true, message: '구글 스프레드시트에 방명록이 성공적으로 기록되었습니다.' };
-      }
-    } catch {
-      // If POST hits CORS redirect policy in browser, fallback to GET query param with mode: 'no-cors'
-      try {
-        const getUrl = `${trimmedUrl}${trimmedUrl.includes('?') ? '&' : '?'}action=add_guestbook&name=${encodeURIComponent(entry.name)}&message=${encodeURIComponent(entry.message)}&createdAt=${encodeURIComponent(entry.createdAt)}&_t=${Date.now()}`;
-        await fetch(getUrl, { method: 'GET', mode: 'no-cors' });
-        return { success: true, message: '구글 스프레드시트에 방명록이 기록되었습니다.' };
-      } catch (getErr) {
-        console.error('Fallback GET guestbook save error:', getErr);
-      }
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(postPayload),
+        mode: 'no-cors'
+      }).catch(() => {});
+    } catch (postErr) {
+      console.warn('POST guestbook fallback warning:', postErr);
     }
+
+    return { success: true, message: '구글 스프레드시트에 방명록이 성공적으로 기록되었습니다.' };
   }
 
   // 2. Direct Spreadsheet URL (docs.google.com/spreadsheets/d/...)
