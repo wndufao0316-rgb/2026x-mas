@@ -1,5 +1,5 @@
 /**
- * Subtle antique sound effects synthesized purely via Web Audio API
+ * Elegant antique & classic sound effects synthesized purely via Web Audio API
  */
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -17,7 +17,7 @@ class SoundEngine {
     }
   }
 
-  // Book opening sound (wooden/leather gentle resonant whoosh)
+  // Book opening sound (gentle parchment & soft leather opening swish)
   playBookOpen() {
     if (!this.enabled) return;
     try {
@@ -25,52 +25,48 @@ class SoundEngine {
       if (!this.ctx) return;
       
       const now = this.ctx.currentTime;
-      // White noise for parchment rustle
-      const bufferSize = this.ctx.sampleRate * 0.4;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const output = buffer.getChannelData(0);
+      const duration = 0.45;
+      const sampleRate = this.ctx.sampleRate;
+      const bufferSize = Math.floor(sampleRate * duration);
+      const buffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      let b0 = 0, b1 = 0;
       for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
+        const white = Math.random() * 2 - 1;
+        b0 = 0.98 * b0 + white * 0.08;
+        b1 = 0.92 * b1 + white * 0.18;
+        const t = i / sampleRate;
+        const env = Math.sin(Math.PI * (t / duration));
+        data[i] = (b0 + b1) * 0.4 * env;
       }
 
-      const whiteNoise = this.ctx.createBufferSource();
-      whiteNoise.buffer = buffer;
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
 
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(600, now);
-      filter.frequency.exponentialRampToValueAtTime(150, now + 0.35);
+      filter.frequency.setValueAtTime(1200, now);
+      filter.frequency.exponentialRampToValueAtTime(400, now + duration);
+      filter.Q.setValueAtTime(0.7, now);
 
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.01, now);
-      gain.gain.linearRampToValueAtTime(0.12, now + 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.05, now + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-      whiteNoise.connect(filter);
+      noise.connect(filter);
       filter.connect(gain);
       gain.connect(this.ctx.destination);
 
-      whiteNoise.start(now);
-
-      // Deep antique wood resonance
-      const osc = this.ctx.createOscillator();
-      const oscGain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(120, now);
-      osc.frequency.exponentialRampToValueAtTime(55, now + 0.4);
-      oscGain.gain.setValueAtTime(0.08, now);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-      osc.connect(oscGain);
-      oscGain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.45);
+      noise.start(now);
+      noise.stop(now + duration + 0.05);
     } catch {
       // Audio autoplay policy fallback
     }
   }
 
-  // Page turn flip sound (paper rustle)
+  // Soft, smooth paper page flip sound (부드러운 사르륵 종이 넘기는 소리)
   playPageFlip() {
     if (!this.enabled) return;
     try {
@@ -78,30 +74,60 @@ class SoundEngine {
       if (!this.ctx) return;
       
       const now = this.ctx.currentTime;
-      const bufferSize = this.ctx.sampleRate * 0.25;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const duration = 0.36; // 360ms subtle realistic paper sliding duration
+      const sampleRate = this.ctx.sampleRate;
+      const bufferSize = Math.floor(sampleRate * duration);
+      const buffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
       const output = buffer.getChannelData(0);
+
+      // Generate soft pink/brown filtered noise with zero pop/click
+      let b0 = 0;
+      let b1 = 0;
+      let b2 = 0;
       for (let i = 0; i < bufferSize; i++) {
-        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.08));
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99 * b0 + white * 0.05;
+        b1 = 0.96 * b1 + white * 0.12;
+        b2 = 0.86 * b2 + white * 0.22;
+        const pinkish = (b0 + b1 + b2) * 0.35;
+        
+        // Gentle smooth arch envelope
+        const progress = i / bufferSize;
+        const envelope = Math.sin(Math.PI * progress);
+        output[i] = pinkish * envelope;
       }
 
       const noise = this.ctx.createBufferSource();
       noise.buffer = buffer;
 
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1200, now);
-      filter.frequency.exponentialRampToValueAtTime(450, now + 0.2);
-      filter.Q.setValueAtTime(1.5, now);
+      // Filter 1: Lowpass filter sweeping like moving paper across surface
+      const lowpass = this.ctx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.setValueAtTime(1400, now);
+      lowpass.frequency.linearRampToValueAtTime(2200, now + 0.12);
+      lowpass.frequency.exponentialRampToValueAtTime(550, now + duration);
+      lowpass.Q.setValueAtTime(0.7, now);
 
+      // Filter 2: Highshelf to tame sharp high-frequencies (removes clicky "tak" sound)
+      const highshelf = this.ctx.createBiquadFilter();
+      highshelf.type = 'highshelf';
+      highshelf.frequency.setValueAtTime(3000, now);
+      highshelf.gain.setValueAtTime(-8, now);
+
+      // Smooth Gain envelope with gradual fade-in and soft release
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.045, now + 0.07);
+      gain.gain.linearRampToValueAtTime(0.035, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-      noise.connect(filter);
-      filter.connect(gain);
+      noise.connect(lowpass);
+      lowpass.connect(highshelf);
+      highshelf.connect(gain);
       gain.connect(this.ctx.destination);
+
       noise.start(now);
+      noise.stop(now + duration + 0.05);
     } catch {
       // Audio autoplay policy fallback
     }
@@ -120,7 +146,8 @@ class SoundEngine {
         const gain = this.ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now + i * 0.06);
-        gain.gain.setValueAtTime(0.04, now + i * 0.06);
+        gain.gain.setValueAtTime(0.0001, now + i * 0.06);
+        gain.gain.linearRampToValueAtTime(0.035, now + i * 0.06 + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.06 + 0.8);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
