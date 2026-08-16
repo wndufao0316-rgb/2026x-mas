@@ -21,7 +21,7 @@ export const WelcomePhotoPage: React.FC<WelcomePhotoPageProps> = ({
 }) => {
   const imageUrl = metadata.welcomePage2ImageUrl || 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80';
   const heading = metadata.welcomePage2Heading || '초대의 글';
-  const subtitle = metadata.welcomePage2Subtitle || 'Reflection & Photo';
+  const subtitle = metadata.welcomePage2Subtitle || 'PROLOG';
   const dedication = metadata.welcomePage2DedicationHeader || '은혜의 여정을 함께하며';
   const message = metadata.welcomePage2Message || `함께 모여 같은 마음으로 주를 바라보는 이 자리가 
 우리에게 가장 큰 위로와 기쁨이 됩니다. 

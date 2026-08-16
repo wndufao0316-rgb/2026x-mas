@@ -46,12 +46,12 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
       setDate(metadata.date || '');
       setVenue(metadata.venue || '');
       setWelcomeHeading(metadata.welcomeHeading || '초대의 글');
-      setWelcomeSubtitle(metadata.welcomeSubtitle || 'Invocation & Welcome');
+      setWelcomeSubtitle(metadata.welcomeSubtitle || 'INTRODUCTION');
       setWelcomeDedicationHeader(metadata.welcomeDedicationHeader || `"${metadata.concertTitle || '운명(運命): 창조의 뜻'}"에 부쳐`);
       setWelcomeMessage(metadata.welcomeMessage || '');
 
       setWelcomePage2Heading(metadata.welcomePage2Heading || '초대의 글');
-      setWelcomePage2Subtitle(metadata.welcomePage2Subtitle || 'Reflection & Photo');
+      setWelcomePage2Subtitle(metadata.welcomePage2Subtitle || 'PROLOG');
       setWelcomePage2DedicationHeader(metadata.welcomePage2DedicationHeader || '은혜의 여정을 함께하며');
       setWelcomePage2ImageUrl(metadata.welcomePage2ImageUrl || 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80');
       setWelcomePage2ImageCaption(metadata.welcomePage2ImageCaption || '아름다운 선율과 기도가 머무는 거룩한 찬양의 처소');
@@ -59,7 +59,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
 
       setDedicationText(metadata.dedicationText || '');
       setTocHeading(metadata.tocHeading || '행사 순서');
-      setTocSubtitle(metadata.tocSubtitle || 'Order of Worship');
+      setTocSubtitle(metadata.tocSubtitle || 'Event Schedule');
     }
   }, [metadata, isOpen]);
 

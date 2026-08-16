@@ -169,11 +169,11 @@ export const SyncSheetModal: React.FC<SyncSheetModalProps> = ({
             <div className="space-y-2.5">
               <div>
                 <label className="block text-[11px] font-bold text-[#2a1b0a] mb-1 font-sans">
-                  Apps Script 웹 앱 URL:
+                  구글 스프레드시트 링크 또는 Apps Script 웹 앱 URL:
                 </label>
                 <input
                   type="url"
-                  placeholder="https://script.google.com/macros/s/.../exec"
+                  placeholder="https://docs.google.com/spreadsheets/d/1Dzu4WZ9qJa4Eq_RYQI2dM6xIFEdlzlTmPQ0UT-TJh70/edit..."
                   value={sheetUrl}
                   onChange={(e) => setSheetUrl(e.target.value)}
                   className="w-full px-3 py-2 bg-[#fdfaf1] border border-[#3d2b1f]/30 rounded text-xs text-[#2a1b0a] focus:outline-none focus:border-[#3d2b1f]"

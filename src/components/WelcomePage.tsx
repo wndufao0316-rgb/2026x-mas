@@ -40,7 +40,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
             }`}
             title={isEditMode ? "클릭하여 상단 영문 소제목 수정" : undefined}
           >
-            {metadata.welcomeSubtitle || 'Invocation & Welcome'}
+            {metadata.welcomeSubtitle || 'INTRODUCTION'}
           </p>
 
           {isEditMode && (

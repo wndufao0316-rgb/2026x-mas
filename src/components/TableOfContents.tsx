@@ -52,7 +52,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
             }`}
             title={isEditMode ? "클릭하여 상단 영문 소제목 수정" : undefined}
           >
-            {metadata.tocSubtitle || 'Order of Worship'}
+            {metadata.tocSubtitle || 'Event Schedule'}
           </p>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#2a1b0a] font-serif-kr">
             <span

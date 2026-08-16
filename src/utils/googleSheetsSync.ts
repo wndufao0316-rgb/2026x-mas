@@ -1,4 +1,4 @@
-import { ProgramItem, BrochureData } from '../types';
+import { ProgramItem, BrochureMetadata, BrochureData, GuestbookEntry } from '../types';
 
 /**
  * Extracts Google Sheet ID from any standard Google Spreadsheet URL
@@ -12,10 +12,17 @@ export function extractGoogleSheetId(url: string): string | null {
 /**
  * Converts a Google Spreadsheet URL to a direct CSV export URL with cache-busting
  */
-export function getGoogleSheetCsvUrl(url: string): string {
+export function getGoogleSheetCsvUrl(url: string, sheetNameOrGid?: string): string {
   const sheetId = extractGoogleSheetId(url);
   if (sheetId) {
     const timestamp = Date.now();
+    if (sheetNameOrGid) {
+      if (/^\d+$/.test(sheetNameOrGid)) {
+        return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetNameOrGid}&_t=${timestamp}`;
+      } else {
+        return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrGid)}&_t=${timestamp}`;
+      }
+    }
     return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&_t=${timestamp}`;
   }
   return url;
@@ -70,7 +77,7 @@ export function parseCSV(text: string): string[][] {
 }
 
 /**
- * Maps parsed CSV rows to strongly-typed ProgramItem array
+ * Maps parsed CSV rows from '행사순서' tab to ProgramItem array
  */
 export function convertCsvRowsToProgramItems(rows: string[][]): ProgramItem[] {
   if (rows.length < 2) return [];
@@ -131,11 +138,83 @@ export function convertCsvRowsToProgramItems(rows: string[][]): ProgramItem[] {
 }
 
 /**
- * Main fetch function: supports both direct Google Sheet CSV export AND Google Apps Script JSON web app URL
+ * Maps parsed key-value CSV rows from '행사정보' tab to BrochureMetadata
+ */
+export function convertCsvRowsToMetadata(rows: string[][]): Partial<BrochureMetadata> {
+  if (rows.length < 2) return {};
+
+  const metadata: Partial<BrochureMetadata> = {};
+  
+  rows.slice(1).forEach(row => {
+    if (row.length >= 2 && row[0]?.trim()) {
+      const key = row[0].trim() as keyof BrochureMetadata;
+      const value = row[1];
+      if (value !== undefined) {
+        // Enforce prompt instructions:
+        if (key === 'welcomePage2Subtitle' && (!value || value.toLowerCase().includes('reflection'))) {
+          metadata.welcomePage2Subtitle = 'PROLOG';
+        } else if (key === 'welcomeSubtitle' && (!value || value.toLowerCase().includes('invocation'))) {
+          metadata.welcomeSubtitle = 'INTRODUCTION';
+        } else if (key === 'tocSubtitle' && (!value || value.toLowerCase().includes('worship'))) {
+          metadata.tocSubtitle = 'Event Schedule';
+        } else {
+          metadata[key] = value as any;
+        }
+      }
+    }
+  });
+
+  return metadata;
+}
+
+/**
+ * Maps parsed CSV rows from '방명록' tab to GuestbookEntry array
+ */
+export function convertCsvRowsToGuestbook(rows: string[][]): GuestbookEntry[] {
+  if (rows.length < 2) return [];
+
+  const dataRows = rows.slice(1);
+  return dataRows
+    .filter(row => row.some(c => c.trim().length > 0))
+    .map((row, index) => {
+      const createdAt = row[0] ? row[0].trim() : new Date().toISOString().slice(0, 10);
+      const name = row[1] ? row[1].trim() : '익명의 성도';
+      const message = row[2] ? row[2].trim() : '';
+
+      return {
+        id: `gb-sheet-${index + 1}`,
+        name,
+        message,
+        createdAt
+      };
+    })
+    .filter(entry => entry.message.length > 0);
+}
+
+/**
+ * Helper to fetch a single sheet as CSV text
+ */
+async function fetchSheetCsv(sheetId: string, sheetNameOrGid: string): Promise<string[][]> {
+  const url = getGoogleSheetCsvUrl(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, sheetNameOrGid);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { 'Accept': 'text/csv, text/plain, */*' },
+    cache: 'no-cache'
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch sheet: ${sheetNameOrGid} (${response.status})`);
+  }
+  const text = await response.text();
+  return parseCSV(text);
+}
+
+/**
+ * Main fetch function: supports both direct Google Sheet tabs AND Google Apps Script JSON web app URL
  */
 export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
   items: ProgramItem[];
   metadata?: Partial<BrochureData['metadata']>;
+  guestbook?: GuestbookEntry[];
 } | null> {
   if (!sheetUrl || !sheetUrl.trim()) return null;
 
@@ -144,25 +223,65 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
   try {
     // Case 1: Standard Google Spreadsheet URL (docs.google.com/spreadsheets/d/...)
     if (trimmedUrl.includes('docs.google.com/spreadsheets')) {
-      const csvUrl = getGoogleSheetCsvUrl(trimmedUrl);
-      const response = await fetch(csvUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'text/csv, text/plain, */*' },
-        cache: 'no-cache'
-      });
+      const sheetId = extractGoogleSheetId(trimmedUrl);
+      if (!sheetId) return null;
 
-      if (!response.ok) {
-        throw new Error(`Google Sheets fetch failed with status: ${response.status}`);
+      let items: ProgramItem[] = [];
+      let metadata: Partial<BrochureMetadata> = {};
+      let guestbook: GuestbookEntry[] = [];
+
+      // 1. Fetch '행사순서' (Prog Items) - Try sheet name first, then known GID 1367178154, then fallback
+      try {
+        const progRows = await fetchSheetCsv(sheetId, '행사순서');
+        if (progRows.length > 1) {
+          items = convertCsvRowsToProgramItems(progRows);
+        }
+      } catch {
+        try {
+          const progRows = await fetchSheetCsv(sheetId, '1367178154');
+          if (progRows.length > 1) items = convertCsvRowsToProgramItems(progRows);
+        } catch {
+          // Fallback to default export
+          const progRows = await fetchSheetCsv(sheetId, '0');
+          if (progRows.length > 1) items = convertCsvRowsToProgramItems(progRows);
+        }
       }
 
-      const csvText = await response.text();
-      const rows = parseCSV(csvText);
-      const items = convertCsvRowsToProgramItems(rows);
-
-      if (items.length > 0) {
-        return { items };
+      // 2. Fetch '행사정보' (Metadata - 행사정보 탭)
+      try {
+        const metaRows = await fetchSheetCsv(sheetId, '행사정보');
+        if (metaRows.length > 1) {
+          metadata = convertCsvRowsToMetadata(metaRows);
+        }
+      } catch {
+        try {
+          const metaRows = await fetchSheetCsv(sheetId, '921148992');
+          if (metaRows.length > 1) metadata = convertCsvRowsToMetadata(metaRows);
+        } catch (e) {
+          console.warn('Metadata tab fetch failed, retaining existing metadata', e);
+        }
       }
-      return null;
+
+      // 3. Fetch '방명록' (Guestbook)
+      try {
+        const gbRows = await fetchSheetCsv(sheetId, '방명록');
+        if (gbRows.length > 1) {
+          guestbook = convertCsvRowsToGuestbook(gbRows);
+        }
+      } catch {
+        try {
+          const gbRows = await fetchSheetCsv(sheetId, '1663618309');
+          if (gbRows.length > 1) guestbook = convertCsvRowsToGuestbook(gbRows);
+        } catch (e) {
+          console.warn('Guestbook tab fetch failed', e);
+        }
+      }
+
+      return {
+        items: items.length > 0 ? items : [],
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        guestbook: guestbook.length > 0 ? guestbook : undefined
+      };
     }
 
     // Case 2: Google Apps Script Web App JSON endpoint
@@ -194,7 +313,7 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
           duration: it.duration || ''
         }));
         mappedItems.sort((a, b) => a.order - b.order);
-        return { items: mappedItems, metadata: json.metadata };
+        return { items: mappedItems, metadata: json.metadata, guestbook: json.guestbook };
       }
     }
 

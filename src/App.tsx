@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { BrochureData, ProgramItem, BrochureMetadata } from './types';
 import { initialBrochureData } from './data/defaultProgram';
+import { fetchLiveGoogleSheetData } from './utils/googleSheetsSync';
 import { sounds } from './utils/soundEffects';
 import { BookCover } from './components/BookCover';
 import { WelcomePage } from './components/WelcomePage';
@@ -21,7 +22,7 @@ import { EditTextModal } from './components/EditTextModal';
 import { EditMetadataModal } from './components/EditMetadataModal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 
-const STORAGE_KEY = 'joshua_jeong_praise_brochure_v2';
+const STORAGE_KEY = 'joshua_jeong_praise_brochure_v3';
 
 export default function App() {
   // 1. Data State with LocalStorage Persistence
@@ -232,51 +233,59 @@ export default function App() {
     goToPage(1);
   };
 
-  // Google Sheets Fetching Logic (Sheet -> Web App)
-  const handleSyncGoogleSheet = async (webAppUrl: string): Promise<boolean> => {
-    try {
-      const response = await fetch(webAppUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP Error ${response.status}`);
+  // Auto-sync latest data from Google Sheets in background on startup
+  useEffect(() => {
+    const autoSync = async () => {
+      const url = brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl;
+      if (url) {
+        try {
+          const result = await fetchLiveGoogleSheetData(url);
+          if (result) {
+            setBrochureData(prev => ({
+              ...prev,
+              items: result.items && result.items.length > 0 ? result.items : prev.items,
+              metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
+              guestbook: result.guestbook && result.guestbook.length > 0 ? result.guestbook : prev.guestbook,
+              googleSheetUrl: url,
+              lastSynced: new Date().toISOString()
+            }));
+          }
+        } catch (e) {
+          console.warn('Initial auto-sync error:', e);
+        }
       }
-      const data = await response.json();
-      if (data && data.items && Array.isArray(data.items)) {
-        const mappedItems: ProgramItem[] = data.items.map((it: Partial<ProgramItem>, idx: number) => ({
-          id: it.id || `item-sync-${idx + 1}`,
-          order: typeof it.order === 'number' ? it.order : (idx + 1),
-          actTitle: it.actTitle || `제${idx + 1} 순서`,
-          songTitle: it.songTitle || '찬양 곡명',
-          theme: it.theme || '',
-          scripture: it.scripture || '',
-          performer: it.performer || '',
-          imageUrl: it.imageUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80',
-          imageCaption: it.imageCaption || '',
-          lyrics: it.lyrics || '',
-          commentary: it.commentary || '',
-          duration: it.duration || ''
-        }));
+    };
+    autoSync();
+  }, []);
 
-        mappedItems.sort((a, b) => a.order - b.order);
+  // Google Sheets Fetching Logic (Sheet -> Web App)
+  const handleSyncGoogleSheet = async (webAppUrl?: string): Promise<boolean> => {
+    const targetUrl = (webAppUrl || brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl || '').trim();
+    if (!targetUrl) {
+      showToast('구글 시트 URL을 입력해주세요.', 'error');
+      return false;
+    }
 
+    try {
+      const result = await fetchLiveGoogleSheetData(targetUrl);
+      if (result) {
         setBrochureData(prev => ({
           ...prev,
-          items: mappedItems,
-          metadata: data.metadata ? { ...prev.metadata, ...data.metadata } : prev.metadata,
-          googleSheetUrl: webAppUrl,
+          items: result.items && result.items.length > 0 ? result.items : prev.items,
+          metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
+          guestbook: result.guestbook && result.guestbook.length > 0 ? result.guestbook : prev.guestbook,
+          googleSheetUrl: targetUrl,
           lastSynced: new Date().toISOString()
         }));
 
         sounds.playChime();
-        showToast('구글 스프레드시트의 최신 행사 순서 및 곡 목록을 불러왔습니다.', 'success');
+        showToast('구글 스프레드시트(행사순서, 행사정보, 방명록)의 최신 데이터를 성공적으로 불러왔습니다.', 'success');
         return true;
       }
-      return false;
+      throw new Error('데이터를 가져올 수 없습니다.');
     } catch (err) {
       console.error('Fetch Google Sheet error:', err);
-      showToast('구글 시트 불러오기 실패: URL 및 웹앱 배포 권한([모든 사용자])을 확인해주세요.', 'error');
+      showToast('구글 시트 불러오기 실패: URL 및 시트 공개 범위([링크가 있는 모든 사용자에게 공개])를 확인해주세요.', 'error');
       return false;
     }
   };
@@ -539,12 +548,20 @@ export default function App() {
       {/* Edit Mode Active Guide Banner (Only displayed when editing) */}
       {isEditMode && (
         <div className="relative z-30 w-full max-w-[430px] mb-1.5 animate-fadeIn">
-          <div className="flex items-center justify-between px-3 py-1.5 bg-amber-900/80 border border-amber-500/50 rounded-lg text-[#fdfaf1] text-[11px] font-sans shadow-md backdrop-blur-xs">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-amber-900/90 border border-amber-500/50 rounded-lg text-[#fdfaf1] text-[11px] font-sans shadow-md backdrop-blur-xs">
             <span className="flex items-center gap-1.5 font-medium">
               <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
               <span>화면 글자를 클릭해 직접 쓰거나 수정하세요</span>
             </span>
             <div className="flex items-center space-x-1.5">
+              <button
+                onClick={() => setShowSyncModal(true)}
+                className="text-[10.5px] text-[#fdfaf1] font-bold bg-[#8b5e3c] hover:bg-[#3d2b1f] px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center space-x-1 shadow-xs border border-amber-400/40"
+                title="구글 시트 연동 설정 열기"
+              >
+                <Sheet className="w-3 h-3 text-[#dfba73]" />
+                <span>시트 연동</span>
+              </button>
               <button
                 onClick={() => handleSaveToGoogleSheet()}
                 disabled={isSavingToSheet}
@@ -552,7 +569,7 @@ export default function App() {
                 title="수정한 모든 글귀와 사진을 구글 스프레드시트에 즉시 반영합니다"
               >
                 <CloudUpload className={`w-3 h-3 ${isSavingToSheet ? 'animate-bounce' : ''}`} />
-                <span>{isSavingToSheet ? '시트 저장 중...' : '시트에 저장'}</span>
+                <span>{isSavingToSheet ? '저장 중...' : '시트에 저장'}</span>
               </button>
               <button
                 onClick={() => setIsEditMode(false)}
@@ -593,7 +610,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Right: Small Edit Button, Sheet Sync, Sound */}
+        {/* Right: Small Edit Button & Sound */}
         <div className="flex items-center space-x-1.5">
           {/* Edit Mode Toggle Button (Protected by password) */}
           <button
@@ -617,15 +634,6 @@ export default function App() {
           >
             <Edit3 className={`w-3.5 h-3.5 ${isEditMode ? 'text-black' : 'text-[#dfba73]'}`} />
             <span>{isEditMode ? '✏️ 편집 활성' : '편집 모드'}</span>
-          </button>
-
-          {/* Google Sheets Sync Modal Trigger */}
-          <button
-            onClick={() => setShowSyncModal(true)}
-            className="p-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#2a1b0a] border border-[#8b5e3c]/40 text-[#fdfaf1] transition-all cursor-pointer shadow-xs"
-            title="구글 시트 양방향 연동 (저장 및 불러오기)"
-          >
-            <Sheet className="w-3.5 h-3.5 text-[#dfba73]" />
           </button>
 
           {/* Sound Toggle */}
