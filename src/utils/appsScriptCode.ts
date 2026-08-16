@@ -48,6 +48,7 @@ function testRun() {
   Logger.log("연결된 스프레드시트 이름: " + ss.getName());
   Logger.log("방명록 탭 이름: " + gbSheet.getName());
   Logger.log("방명록 현재 등록된 행 수: " + gbSheet.getLastRow());
+  Logger.log("현재 날짜 포맷 테스트: " + formatDate());
   Logger.log("★ 성공: 구글 시트 및 방명록 탭이 완벽하게 연결되었습니다.");
   Logger.log("★ 이제 우측 상단 [배포 > 새 배포 > 웹 앱 (액세스 권한: 모든 사용자)]으로 배포하시면 됩니다.");
 }
@@ -336,6 +337,9 @@ function doPost(e) {
 }
 
 function formatDate(d) {
+  if (!d || !(d instanceof Date) || isNaN(d.getTime())) {
+    d = new Date();
+  }
   var year = d.getFullYear();
   var month = ("0" + (d.getMonth() + 1)).slice(-2);
   var day = ("0" + d.getDate()).slice(-2);
@@ -346,7 +350,7 @@ function formatDate(d) {
 
 function createJsonResponse(data) {
   return ContentService
-    .createTextOutput(JSON.stringify(data))
+    .createTextOutput(JSON.stringify(data || {}))
     .setMimeType(ContentService.MimeType.JSON);
 }
 `;

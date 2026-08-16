@@ -236,7 +236,8 @@ export default function App() {
   // Auto-sync latest data from Google Sheets in background on startup
   useEffect(() => {
     const autoSync = async () => {
-      const url = brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl;
+      const savedScriptUrl = typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') : null;
+      const url = savedScriptUrl || brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl;
       if (url) {
         try {
           const result = await fetchLiveGoogleSheetData(url);
@@ -245,8 +246,9 @@ export default function App() {
               ...prev,
               items: result.items && result.items.length > 0 ? result.items : prev.items,
               metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-              guestbook: mergeGuestbookEntries(result.guestbook || [], prev.guestbook || []),
-              googleSheetUrl: url,
+              guestbook: result.guestbook !== undefined ? result.guestbook : prev.guestbook,
+              googleSheetUrl: prev.googleSheetUrl || url,
+              appsScriptUrl: savedScriptUrl || prev.appsScriptUrl,
               lastSynced: new Date().toISOString()
             }));
           }
@@ -269,17 +271,23 @@ export default function App() {
     try {
       const result = await fetchLiveGoogleSheetData(targetUrl);
       if (result) {
+        const isScript = targetUrl.includes('script.google.com');
         setBrochureData(prev => ({
           ...prev,
           items: result.items && result.items.length > 0 ? result.items : prev.items,
           metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-          guestbook: mergeGuestbookEntries(result.guestbook || [], prev.guestbook || []),
-          googleSheetUrl: targetUrl,
+          guestbook: result.guestbook !== undefined ? result.guestbook : prev.guestbook,
+          googleSheetUrl: !isScript ? targetUrl : (prev.googleSheetUrl || targetUrl),
+          appsScriptUrl: isScript ? targetUrl : prev.appsScriptUrl,
           lastSynced: new Date().toISOString()
         }));
 
+        if (isScript && typeof window !== 'undefined') {
+          localStorage.setItem('brochure_apps_script_url', targetUrl);
+        }
+
         sounds.playChime();
-        showToast('구글 스프레드시트(행사순서, 행사정보, 방명록)의 최신 데이터를 성공적으로 불러왔습니다.', 'success');
+        showToast('구글 스프레드시트(행사순서, 행사정보, 방명록)의 최신 데이터를 성공적으로 동기화했습니다.', 'success');
         return true;
       }
       throw new Error('데이터를 가져올 수 없습니다.');
@@ -410,13 +418,19 @@ export default function App() {
     }));
 
     // Real-time synchronization with Google Sheets (Apps Script Web App)
-    if (brochureData.googleSheetUrl) {
+    const scriptUrl = brochureData.appsScriptUrl || 
+      (brochureData.googleSheetUrl?.includes('script.google.com') ? brochureData.googleSheetUrl : '') ||
+      (typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') || '' : '');
+      
+    const effectiveSheetUrl = scriptUrl || brochureData.googleSheetUrl;
+
+    if (effectiveSheetUrl) {
       try {
-        const syncResult = await sendGuestbookEntryToSheet(brochureData.googleSheetUrl, newEntry);
+        const syncResult = await sendGuestbookEntryToSheet(effectiveSheetUrl, newEntry);
         if (syncResult.success) {
-          showToast('방명록이 구글 스프레드시트에 안전하게 실시간 기록되었습니다.', 'success');
+          showToast('방명록이 구글 스프레드시트 3번째 탭(방명록)에 성공적으로 저장되었습니다.', 'success');
         } else if (syncResult.isSpreadsheetOnly) {
-          showToast('방명록이 등록되었습니다. (구글 시트에 실시간 자동 기록하려면 [설정 > 시트 연동]에서 Apps Script 웹앱 URL을 배포하여 등록해주세요.)', 'info');
+          showToast('방명록이 등록되었습니다. (구글 시트 3번째 탭에 자동 기록되도록 [설정 > 시트 연동]에서 Apps Script 웹앱 URL을 연동해주세요.)', 'info');
         }
       } catch (err) {
         console.warn('Real-time guestbook sync error:', err);
@@ -426,20 +440,26 @@ export default function App() {
 
   // Refresh guestbook from Google Sheet
   const handleRefreshGuestbook = async () => {
-    if (!brochureData.googleSheetUrl) {
+    const targetUrl = brochureData.appsScriptUrl || brochureData.googleSheetUrl || (typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') : null);
+    if (!targetUrl) {
       showToast('연동된 구글 시트 URL이 없습니다.', 'error');
       return;
     }
     
     setIsRefreshingGuestbook(true);
     try {
-      const liveData = await fetchLiveGoogleSheetData(brochureData.googleSheetUrl);
-      if (liveData && liveData.guestbook) {
+      const liveData = await fetchLiveGoogleSheetData(targetUrl);
+      if (liveData && liveData.guestbook !== undefined) {
         setBrochureData(prev => ({
           ...prev,
-          guestbook: mergeGuestbookEntries(liveData.guestbook || [], prev.guestbook || [])
+          guestbook: liveData.guestbook || []
         }));
-        showToast('구글 시트에서 최신 방명록을 성공적으로 동기화했습니다.', 'success');
+        showToast(
+          liveData.guestbook.length > 0 
+            ? '구글 시트에서 최신 방명록을 성공적으로 동기화했습니다.' 
+            : '구글 시트와 동기화되었습니다. (방명록이 비어있음)',
+          'success'
+        );
       } else {
         showToast('방명록이 최신 상태입니다.', 'info');
       }

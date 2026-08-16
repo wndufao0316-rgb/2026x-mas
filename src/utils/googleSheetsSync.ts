@@ -288,15 +288,16 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
       }
 
       // 3. Fetch '방명록' (Guestbook)
+      let gbLoaded = false;
       try {
         const gbRows = await fetchSheetCsv(sheetId, '방명록');
-        if (gbRows.length > 1) {
-          guestbook = convertCsvRowsToGuestbook(gbRows);
-        }
+        guestbook = convertCsvRowsToGuestbook(gbRows);
+        gbLoaded = true;
       } catch {
         try {
           const gbRows = await fetchSheetCsv(sheetId, '1663618309');
-          if (gbRows.length > 1) guestbook = convertCsvRowsToGuestbook(gbRows);
+          guestbook = convertCsvRowsToGuestbook(gbRows);
+          gbLoaded = true;
         } catch (e) {
           console.warn('Guestbook tab fetch failed', e);
         }
@@ -305,23 +306,37 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
       return {
         items: items.length > 0 ? items : [],
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        guestbook: guestbook.length > 0 ? guestbook : undefined
+        guestbook: gbLoaded ? guestbook : undefined
       };
     }
 
     // Case 2: Google Apps Script Web App JSON endpoint
     if (trimmedUrl.includes('script.google.com') || trimmedUrl.includes('/api/')) {
-      const response = await fetch(trimmedUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-cache'
-      });
+      let json: any = null;
 
-      if (!response.ok) {
-        throw new Error(`Web App endpoint failed with status: ${response.status}`);
+      // 2-A. Try JSONP first (avoids browser CORS restrictions completely)
+      try {
+        json = await fetchViaJsonp<any>(trimmedUrl);
+      } catch (jsonpErr) {
+        console.warn('JSONP fetch initial try:', jsonpErr);
       }
 
-      const json = await response.json();
+      // 2-B. Fallback to standard fetch
+      if (!json) {
+        try {
+          const response = await fetch(trimmedUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-cache'
+          });
+          if (response.ok) {
+            json = await response.json();
+          }
+        } catch (fetchErr) {
+          console.warn('Fetch fallback error:', fetchErr);
+        }
+      }
+
       if (json && json.items && Array.isArray(json.items)) {
         const mappedItems: ProgramItem[] = json.items.map((it: Partial<ProgramItem>, idx: number) => ({
           id: it.id || `item-sheet-${idx + 1}`,
@@ -339,14 +354,14 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
         }));
         mappedItems.sort((a, b) => a.order - b.order);
         
-        let gbList: GuestbookEntry[] | undefined = undefined;
+        let gbList: GuestbookEntry[] = [];
         if (json.guestbook && Array.isArray(json.guestbook)) {
           gbList = json.guestbook.map((g: any, idx: number) => ({
             id: g.id || `gb-sheet-${idx + 1}`,
             name: g.name || '성도',
             message: g.message || '',
             createdAt: g.createdAt || ''
-          })).filter((g: GuestbookEntry) => g.message.trim().length > 0);
+          })).filter((g: GuestbookEntry) => g.message && g.message.trim().length > 0);
         }
 
         return { items: mappedItems, metadata: json.metadata, guestbook: gbList };
@@ -358,6 +373,67 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
     console.error('Error fetching live Google Sheet data:', error);
     return null;
   }
+}
+
+/**
+ * CORS-proof JSONP fetcher for Google Apps Script Web App
+ */
+export function fetchViaJsonp<T>(url: string, params: Record<string, string> = {}): Promise<T | null> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      resolve(null);
+      return;
+    }
+
+    const callbackName = `jsonp_get_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    let isFinished = false;
+
+    const cleanup = () => {
+      if (isFinished) return;
+      isFinished = true;
+      try {
+        delete (window as any)[callbackName];
+        const el = document.getElementById(callbackName);
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      } catch (e) {
+        // ignore cleanup error
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 7000);
+
+    (window as any)[callbackName] = (data: T) => {
+      clearTimeout(timeout);
+      cleanup();
+      resolve(data);
+    };
+
+    const queryParams: Record<string, string> = {
+      ...params,
+      callback: callbackName,
+      _t: String(Date.now())
+    };
+
+    const queryString = Object.entries(queryParams)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const script = document.createElement('script');
+    script.id = callbackName;
+    script.src = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      cleanup();
+      resolve(null);
+    };
+
+    document.body.appendChild(script);
+  });
 }
 
 /**

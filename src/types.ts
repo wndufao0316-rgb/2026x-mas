@@ -49,6 +49,7 @@ export interface BrochureData {
   items: ProgramItem[];
   guestbook?: GuestbookEntry[];
   googleSheetUrl?: string;
+  appsScriptUrl?: string;
   lastSynced?: string;
 }
 
