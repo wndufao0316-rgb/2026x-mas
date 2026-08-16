@@ -17,8 +17,11 @@ export const GOOGLE_APPS_SCRIPT_CODE = `/**
  *    웹에서 남긴 모든 방명록이 구글 시트 3번째 탭(방명록)에 즉시 자동 기록됩니다!
  */
 
-// 3번째 탭 '방명록' 시트 안전 탐색 함수
+// 3번째 탭 '방명록' 시트 안전 탐색 함수 (직접 실행 시에도 스프레드시트 자동 연결)
 function getGuestbookSheet(ss) {
+  if (!ss) {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
   var sheet = ss.getSheetByName("방명록");
   if (sheet) return sheet;
   var allSheets = ss.getSheets();
@@ -36,6 +39,17 @@ function getGuestbookSheet(ss) {
   newSheet.appendRow(["작성일시", "작성자(이름)", "축복의 메시지"]);
   newSheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#dfba73").setFontColor("#2a1b0a");
   return newSheet;
+}
+
+// Apps Script 상단에서 [▶ 실행] 버튼을 눌러 테스트할 수 있는 진단 함수
+function testRun() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var gbSheet = getGuestbookSheet(ss);
+  Logger.log("연결된 스프레드시트 이름: " + ss.getName());
+  Logger.log("방명록 탭 이름: " + gbSheet.getName());
+  Logger.log("방명록 현재 등록된 행 수: " + gbSheet.getLastRow());
+  Logger.log("★ 성공: 구글 시트 및 방명록 탭이 완벽하게 연결되었습니다.");
+  Logger.log("★ 이제 우측 상단 [배포 > 새 배포 > 웹 앱 (액세스 권한: 모든 사용자)]으로 배포하시면 됩니다.");
 }
 
 // 1. 구글 시트 -> 브로슈어 웹앱 데이터 불러오기 및 방명록 실시간 등록 (GET)
