@@ -24,6 +24,19 @@ import { AdminAuthModal } from './components/AdminAuthModal';
 
 const STORAGE_KEY = 'joshua_jeong_praise_brochure_v4';
 
+// Helper to filter out legacy mock/sample entries
+const sanitizeGuestbook = (list?: GuestbookEntry[]): GuestbookEntry[] => {
+  if (!Array.isArray(list)) return [];
+  return list.filter(g => 
+    g && 
+    g.id !== 'gb-1' && 
+    g.id !== 'gb-2' && 
+    g.name !== '김하늘' && 
+    g.name !== '이은혜' &&
+    g.message && g.message.trim().length > 0
+  );
+};
+
 export default function App() {
   // 1. Data State with LocalStorage Persistence
   const [brochureData, setBrochureData] = useState<BrochureData>(() => {
@@ -34,6 +47,7 @@ export default function App() {
         return {
           ...initialBrochureData,
           ...parsed,
+          guestbook: sanitizeGuestbook(parsed.guestbook),
           metadata: {
             ...initialBrochureData.metadata,
             ...(parsed.metadata || {})
@@ -43,7 +57,10 @@ export default function App() {
     } catch {
       // Fallback
     }
-    return initialBrochureData;
+    return {
+      ...initialBrochureData,
+      guestbook: []
+    };
   });
 
   // 2. Navigation State
@@ -246,7 +263,7 @@ export default function App() {
               ...prev,
               items: result.items && result.items.length > 0 ? result.items : prev.items,
               metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-              guestbook: result.guestbook !== undefined ? result.guestbook : prev.guestbook,
+              guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : sanitizeGuestbook(prev.guestbook),
               googleSheetUrl: prev.googleSheetUrl || url,
               appsScriptUrl: savedScriptUrl || prev.appsScriptUrl,
               lastSynced: new Date().toISOString()
@@ -278,7 +295,7 @@ export default function App() {
           ...prev,
           items: itemCount > 0 ? result.items : prev.items,
           metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-          guestbook: result.guestbook !== undefined ? result.guestbook : prev.guestbook,
+          guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : sanitizeGuestbook(prev.guestbook),
           googleSheetUrl: !isScript ? targetUrl : (prev.googleSheetUrl || targetUrl),
           appsScriptUrl: isScript ? targetUrl : prev.appsScriptUrl,
           lastSynced: new Date().toISOString()

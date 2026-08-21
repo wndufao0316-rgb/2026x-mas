@@ -49,20 +49,7 @@ export const initialBrochureData: BrochureData = {
     tocHeading: "행사 순서",
     tocSubtitle: "Event Schedule"
   },
-  guestbook: [
-    {
-      id: "gb-1",
-      name: "김하늘",
-      message: "창조의 뜻을 묵상하는 귀한 찬양 콘서트에 함께할 수 있어 큰 은혜입니다. 진심으로 축복합니다!",
-      createdAt: "2026. 09. 20 18:40"
-    },
-    {
-      id: "gb-2",
-      name: "이은혜",
-      message: "첫 곡부터 눈물과 감격이 넘칩니다. 모든 순서마다 하나님의 임재가 가득하길 기도합니다.",
-      createdAt: "2026. 09. 20 18:55"
-    }
-  ],
+  guestbook: [],
   items: [
     {
       id: "prog-1",

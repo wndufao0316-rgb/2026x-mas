@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Lock, KeyRound } from 'lucide-react';
+import { X, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 interface AdminAuthModalProps {
   isOpen: boolean;
@@ -13,12 +13,14 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   onSuccess
 }) => {
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setPassword('');
+      setShowPassword(false);
       setError(false);
       setTimeout(() => {
         inputRef.current?.focus();
@@ -28,9 +30,25 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  const checkPassword = (input: string): boolean => {
+    // Normalize: remove all spaces, convert Korean IME 'ㅁ' to 'a', convert to lowercase
+    const normalized = input
+      .trim()
+      .replace(/\s+/g, '')
+      .toLowerCase()
+      .replace(/^ㅁ/, 'a'); // handles Korean keyboard input where 'a' is typed as 'ㅁ'
+
+    const validPasswords = [
+      'a789456123',
+      'a7890'
+    ];
+
+    return validPasswords.includes(normalized) || input.trim() === 'a789456123' || input.trim() === 'a7890';
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (password === 'a789456123' || password === 'a7890') {
+    if (checkPassword(password)) {
       setError(false);
       onSuccess();
       onClose();
@@ -66,23 +84,34 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             <label className="block text-xs font-bold text-[#2a1b0a] font-serif-kr">
               관리자 비밀번호
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <KeyRound className="w-4 h-4 text-[#8b5e3c] absolute left-3 pointer-events-none" />
               <input
                 ref={inputRef}
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (error) setError(false);
                 }}
-                placeholder="비밀번호 입력"
-                className={`w-full pl-9 pr-3 py-2 bg-[#fdfaf1] border rounded text-xs text-[#2a1b0a] focus:outline-none transition-colors ${
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="비밀번호 입력 (a789456123)"
+                className={`w-full pl-9 pr-10 py-2 bg-[#fdfaf1] border rounded text-xs text-[#2a1b0a] focus:outline-none transition-colors ${
                   error 
                     ? 'border-rose-500 ring-1 ring-rose-500 bg-rose-50/30' 
                     : 'border-[#3d2b1f]/30 focus:border-[#3d2b1f]'
                 }`}
               />
-              <KeyRound className="w-4 h-4 text-[#8b5e3c] absolute left-3 top-2.5 pointer-events-none" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 p-1 text-[#8b5e3c] hover:text-[#2a1b0a] cursor-pointer"
+                title={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+              >
+                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
             </div>
             {error && (
               <p className="text-[11px] text-rose-600 font-medium pt-0.5">
