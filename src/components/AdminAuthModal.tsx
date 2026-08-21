@@ -97,7 +97,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="비밀번호 입력 (a789456123)"
+                placeholder="비밀번호를 입력하세요"
                 className={`w-full pl-9 pr-10 py-2 bg-[#fdfaf1] border rounded text-xs text-[#2a1b0a] focus:outline-none transition-colors ${
                   error 
                     ? 'border-rose-500 ring-1 ring-rose-500 bg-rose-50/30' 

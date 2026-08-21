@@ -42,6 +42,17 @@ const sanitizeGuestbook = (list?: GuestbookEntry[]): GuestbookEntry[] => {
 };
 
 export default function App() {
+  // Clear any legacy storage keys from v1-v4 on initial startup
+  if (typeof window !== 'undefined') {
+    try {
+      ['joshua_jeong_praise_brochure', 'joshua_jeong_praise_brochure_v2', 'joshua_jeong_praise_brochure_v3', 'joshua_jeong_praise_brochure_v4'].forEach(k => {
+        localStorage.removeItem(k);
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   // 1. Data State with LocalStorage Persistence
   const [brochureData, setBrochureData] = useState<BrochureData>(() => {
     try {
