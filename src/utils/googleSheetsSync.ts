@@ -255,45 +255,79 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
       let metadata: Partial<BrochureMetadata> = {};
       let guestbook: GuestbookEntry[] = [];
 
-      // 1. Fetch '행사순서' (Prog Items) - Try sheet name first, then known GID 1367178154, then fallback
-      try {
-        const progRows = await fetchSheetCsv(sheetId, '행사순서');
-        if (progRows.length > 1) {
-          items = convertCsvRowsToProgramItems(progRows);
-        }
-      } catch {
+      // 1. Fetch '행사순서' (Prog Items) - Try various tab names, GIDs, and fallback
+      const progTabCandidates = ['행사순서', '행사 순서', '순서', '프로그램', 'Program', 'Sheet1', '시트1'];
+      for (const tabName of progTabCandidates) {
         try {
-          const progRows = await fetchSheetCsv(sheetId, '1367178154');
-          if (progRows.length > 1) items = convertCsvRowsToProgramItems(progRows);
+          const progRows = await fetchSheetCsv(sheetId, tabName);
+          if (progRows.length > 1) {
+            const parsed = convertCsvRowsToProgramItems(progRows);
+            if (parsed.length > 0) {
+              items = parsed;
+              break;
+            }
+          }
         } catch {
-          // Fallback to default export
-          const progRows = await fetchSheetCsv(sheetId, '0');
-          if (progRows.length > 1) items = convertCsvRowsToProgramItems(progRows);
+          // continue candidate search
+        }
+      }
+
+      if (items.length === 0) {
+        const progGidCandidates = ['1367178154', '0'];
+        for (const gid of progGidCandidates) {
+          try {
+            const progRows = await fetchSheetCsv(sheetId, gid);
+            if (progRows.length > 1) {
+              const parsed = convertCsvRowsToProgramItems(progRows);
+              if (parsed.length > 0) {
+                items = parsed;
+                break;
+              }
+            }
+          } catch {
+            // continue
+          }
         }
       }
 
       // 2. Fetch '행사정보' (Metadata - 행사정보 탭)
-      try {
-        const metaRows = await fetchSheetCsv(sheetId, '행사정보');
-        if (metaRows.length > 1) {
-          metadata = convertCsvRowsToMetadata(metaRows);
+      const metaTabCandidates = ['행사정보', '행사 정보', '정보', 'Info', 'Metadata'];
+      for (const tabName of metaTabCandidates) {
+        try {
+          const metaRows = await fetchSheetCsv(sheetId, tabName);
+          if (metaRows.length > 1) {
+            metadata = convertCsvRowsToMetadata(metaRows);
+            if (Object.keys(metadata).length > 0) break;
+          }
+        } catch {
+          // continue
         }
-      } catch {
+      }
+
+      if (Object.keys(metadata).length === 0) {
         try {
           const metaRows = await fetchSheetCsv(sheetId, '921148992');
           if (metaRows.length > 1) metadata = convertCsvRowsToMetadata(metaRows);
         } catch (e) {
-          console.warn('Metadata tab fetch failed, retaining existing metadata', e);
+          console.warn('Metadata tab fetch fallback failed', e);
         }
       }
 
       // 3. Fetch '방명록' (Guestbook)
       let gbLoaded = false;
-      try {
-        const gbRows = await fetchSheetCsv(sheetId, '방명록');
-        guestbook = convertCsvRowsToGuestbook(gbRows);
-        gbLoaded = true;
-      } catch {
+      const gbTabCandidates = ['방명록', '방명 록', '방명록(축복의메시지)', 'Guestbook', '메시지'];
+      for (const tabName of gbTabCandidates) {
+        try {
+          const gbRows = await fetchSheetCsv(sheetId, tabName);
+          guestbook = convertCsvRowsToGuestbook(gbRows);
+          gbLoaded = true;
+          break;
+        } catch {
+          // continue
+        }
+      }
+
+      if (!gbLoaded) {
         try {
           const gbRows = await fetchSheetCsv(sheetId, '1663618309');
           guestbook = convertCsvRowsToGuestbook(gbRows);

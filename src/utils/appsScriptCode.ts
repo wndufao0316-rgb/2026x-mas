@@ -88,30 +88,63 @@ function doGet(e) {
     }
 
     // 1-2. 행사 순서 시트 읽기 (1번째 탭)
-    var sheet = ss.getSheetByName("행사순서") || ss.getSheets()[0];
-    var data = sheet.getDataRange().getValues();
+    var sheet = ss.getSheetByName("행사순서") || ss.getSheetByName("행사 순서") || ss.getSheetByName("순서") || ss.getSheetByName("Program") || ss.getSheets()[0];
+    var data = sheet ? sheet.getDataRange().getValues() : [];
     var items = [];
 
     if (data.length > 1) {
+      var headerRow = data[0].map(function(h) { 
+        return String(h || "").trim().toLowerCase().replace(/\s+/g, ""); 
+      });
+
+      function findColIndex(keywords, defaultIndex) {
+        for (var k = 0; k < keywords.length; k++) {
+          var kw = keywords[k].toLowerCase();
+          for (var col = 0; col < headerRow.length; col++) {
+            if (headerRow[col].indexOf(kw) !== -1) {
+              return col;
+            }
+          }
+        }
+        return (defaultIndex < headerRow.length) ? defaultIndex : -1;
+      }
+
+      var colOrder = findColIndex(["순서", "order", "번호", "no"], 0);
+      var colAct = findColIndex(["악장", "act", "파트", "part", "구분"], 1);
+      var colTitle = findColIndex(["곡명", "제목", "song", "title", "찬양"], 2);
+      var colTheme = findColIndex(["테마", "theme", "소제목", "주제"], 3);
+      var colScripture = findColIndex(["성경", "말씀", "scripture"], 4);
+      var colPerformer = findColIndex(["출연", "찬양자", "performer", "연주"], 5);
+      var colImage = findColIndex(["사진url", "imageurl", "사진링크", "이미지", "사진"], 6);
+      var colCaption = findColIndex(["사진설명", "caption", "설명글", "캡션"], 7);
+      var colLyrics = findColIndex(["가사", "lyrics", "글귀", "본문"], 8);
+      var colCommentary = findColIndex(["곡해설", "해설", "commentary", "묵상", "곡설명"], 9);
+      var colDuration = findColIndex(["연주시간", "시간", "duration", "소요시간"], 10);
+
       var rows = data.slice(1);
       for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
-        if (!row[0] && !row[2]) continue; // 빈 행 제외
+        var hasContent = row.some(function(cell) {
+          return String(cell || "").trim().length > 0;
+        });
+        if (!hasContent) continue; // 완전히 빈 행 건너뛰기
 
-        var orderNum = Number(row[0]) || (i + 1);
+        var rawOrder = colOrder !== -1 ? String(row[colOrder] || "").replace(/[^0-9]/g, "") : "";
+        var orderNum = rawOrder ? parseInt(rawOrder, 10) : (i + 1);
+
         items.push({
-          id: "item-" + (i + 1),
-          order: orderNum,
-          actTitle: String(row[1] || ("제" + (i + 1) + "장")),
-          songTitle: String(row[2] || "찬양 곡명"),
-          theme: String(row[3] || ""),
-          scripture: String(row[4] || ""),
-          performer: String(row[5] || ""),
-          imageUrl: String(row[6] || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80"),
-          imageCaption: String(row[7] || ""),
-          lyrics: String(row[8] || ""),
-          commentary: String(row[9] || ""),
-          duration: String(row[10] || "")
+          id: "prog-sheet-" + (i + 1),
+          order: isNaN(orderNum) ? (i + 1) : orderNum,
+          actTitle: String((colAct !== -1 ? row[colAct] : "") || ("Part " + (i + 1))).trim(),
+          songTitle: String((colTitle !== -1 ? row[colTitle] : "") || ("찬양 " + (i + 1))).trim(),
+          theme: String((colTheme !== -1 ? row[colTheme] : "") || "").trim(),
+          scripture: String((colScripture !== -1 ? row[colScripture] : "") || "").trim(),
+          performer: String((colPerformer !== -1 ? row[colPerformer] : "") || "").trim(),
+          imageUrl: String((colImage !== -1 && String(row[colImage] || "").indexOf("http") === 0 ? row[colImage] : "") || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80").trim(),
+          imageCaption: String((colCaption !== -1 ? row[colCaption] : "") || "").trim(),
+          lyrics: String((colLyrics !== -1 ? row[colLyrics] : "") || "").trim(),
+          commentary: String((colCommentary !== -1 ? row[colCommentary] : "") || "").trim(),
+          duration: String((colDuration !== -1 ? row[colDuration] : "") || "").trim()
         });
       }
 
@@ -121,7 +154,7 @@ function doGet(e) {
     }
 
     // 1-3. 행사 정보(메타데이터) 시트 읽기 (2번째 탭)
-    var metaSheet = ss.getSheetByName("행사정보") || (ss.getSheets().length >= 2 ? ss.getSheets()[1] : null);
+    var metaSheet = ss.getSheetByName("행사정보") || ss.getSheetByName("행사 정보") || (ss.getSheets().length >= 2 ? ss.getSheets()[1] : null);
     var metadata = {};
     if (metaSheet) {
       var metaData = metaSheet.getDataRange().getValues();
@@ -224,47 +257,48 @@ function doPost(e) {
     }
 
     // 2-2. 관리자 전체 데이터 동기화 저장 (action === 'save')
-    var items = payload.items || [];
-    var metadata = payload.metadata || {};
-    var guestbook = payload.guestbook || [];
+    if (payload.action === "save") {
+      var items = payload.items || [];
+      var metadata = payload.metadata || {};
+      var guestbook = payload.guestbook || [];
 
-    // [1] 행사 순서 시트 업데이트 (1번째 탭)
-    var sheet = ss.getSheetByName("행사순서") || ss.getSheets()[0];
-    if (!sheet) {
-      sheet = ss.insertSheet("행사순서", 0);
-    }
-    sheet.clear();
-    var headers = [
-      ["순서", "악장구분", "곡명", "테마", "성경구절", "출연진", "사진URL", "사진설명", "가사글귀", "곡해설", "연주시간"]
-    ];
-    sheet.getRange(1, 1, 1, headers[0].length).setValues(headers)
-      .setFontWeight("bold")
-      .setBackground("#e8e4d8")
-      .setFontColor("#2a1b0a");
-
-    if (items && items.length > 0) {
-      items.sort(function(a, b) {
-        return (a.order || 0) - (b.order || 0);
-      });
-
-      var rows = items.map(function(item, idx) {
-        return [
-          item.order || (idx + 1),
-          item.actTitle || "",
-          item.songTitle || "",
-          item.theme || "",
-          item.scripture || "",
-          item.performer || "",
-          item.imageUrl || "",
-          item.imageCaption || "",
-          item.lyrics || "",
-          item.commentary || "",
-          item.duration || ""
+      // [1] 행사 순서 시트 업데이트 (1번째 탭) - items가 존재할 때만 덮어쓰기하여 데이터 손실 방지
+      if (items && items.length > 0) {
+        var sheet = ss.getSheetByName("행사순서") || ss.getSheetByName("행사 순서") || ss.getSheets()[0];
+        if (!sheet) {
+          sheet = ss.insertSheet("행사순서", 0);
+        }
+        sheet.clear();
+        var headers = [
+          ["순서", "악장구분", "곡명", "테마", "성경구절", "출연진", "사진URL", "사진설명", "가사글귀", "곡해설", "연주시간"]
         ];
-      });
+        sheet.getRange(1, 1, 1, headers[0].length).setValues(headers)
+          .setFontWeight("bold")
+          .setBackground("#e8e4d8")
+          .setFontColor("#2a1b0a");
 
-      sheet.getRange(2, 1, rows.length, headers[0].length).setValues(rows);
-    }
+        items.sort(function(a, b) {
+          return (a.order || 0) - (b.order || 0);
+        });
+
+        var rows = items.map(function(item, idx) {
+          return [
+            item.order || (idx + 1),
+            item.actTitle || "",
+            item.songTitle || "",
+            item.theme || "",
+            item.scripture || "",
+            item.performer || "",
+            item.imageUrl || "",
+            item.imageCaption || "",
+            item.lyrics || "",
+            item.commentary || "",
+            item.duration || ""
+          ];
+        });
+
+        sheet.getRange(2, 1, rows.length, headers[0].length).setValues(rows);
+      }
 
     // [2] 행사 정보 시트 업데이트 (2번째 탭)
     if (metadata && Object.keys(metadata).length > 0) {

@@ -262,7 +262,7 @@ export default function App() {
 
   // Google Sheets Fetching Logic (Sheet -> Web App)
   const handleSyncGoogleSheet = async (webAppUrl?: string): Promise<boolean> => {
-    const targetUrl = (webAppUrl || brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl || '').trim();
+    const targetUrl = (webAppUrl || brochureData.appsScriptUrl || brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl || '').trim();
     if (!targetUrl) {
       showToast('구글 시트 URL을 입력해주세요.', 'error');
       return false;
@@ -272,9 +272,11 @@ export default function App() {
       const result = await fetchLiveGoogleSheetData(targetUrl);
       if (result) {
         const isScript = targetUrl.includes('script.google.com');
+        const itemCount = result.items?.length || 0;
+        
         setBrochureData(prev => ({
           ...prev,
-          items: result.items && result.items.length > 0 ? result.items : prev.items,
+          items: itemCount > 0 ? result.items : prev.items,
           metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
           guestbook: result.guestbook !== undefined ? result.guestbook : prev.guestbook,
           googleSheetUrl: !isScript ? targetUrl : (prev.googleSheetUrl || targetUrl),
@@ -287,7 +289,11 @@ export default function App() {
         }
 
         sounds.playChime();
-        showToast('구글 스프레드시트(행사순서, 행사정보, 방명록)의 최신 데이터를 성공적으로 동기화했습니다.', 'success');
+        if (itemCount > 0) {
+          showToast(`구글 스프레드시트에서 행사순서 ${itemCount}곡 및 최신 데이터가 성공적으로 동기화되었습니다.`, 'success');
+        } else {
+          showToast('구글 시트와 연결되었습니다. 행사정보 및 방명록이 최신화되었습니다.', 'success');
+        }
         return true;
       }
       throw new Error('데이터를 가져올 수 없습니다.');
@@ -300,9 +306,14 @@ export default function App() {
 
   // Google Sheets Saving Logic (Web App -> Sheet)
   const handleSaveToGoogleSheet = async (webAppUrl?: string): Promise<boolean> => {
-    const targetUrl = (webAppUrl || brochureData.googleSheetUrl || '').trim();
+    const targetUrl = (webAppUrl || brochureData.appsScriptUrl || brochureData.googleSheetUrl || '').trim();
     if (!targetUrl) {
       setShowSyncModal(true);
+      return false;
+    }
+
+    if (!targetUrl.includes('script.google.com')) {
+      showToast('구글 시트 원본 링크(docs.google.com)는 브라우저 보안상 읽기 전용입니다. 웹앱 내용을 시트에 직접 저장하시려면 [설정 > 시트 연동]에서 Apps Script 웹 앱 URL을 등록해주세요.', 'info');
       return false;
     }
 
@@ -332,9 +343,13 @@ export default function App() {
 
       setBrochureData(prev => ({
         ...prev,
-        googleSheetUrl: targetUrl,
+        appsScriptUrl: targetUrl,
         lastSynced: new Date().toISOString()
       }));
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('brochure_apps_script_url', targetUrl);
+      }
 
       sounds.playChime();
       showToast(resJson?.message || '웹앱에서 수정한 모든 글귀와 사진이 구글 시트에 성공적으로 저장되었습니다!', 'success');
