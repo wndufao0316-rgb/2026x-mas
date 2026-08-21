@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GuestbookEntry, BrochureMetadata } from '../types';
 import { Send, User, MessageSquare, Trash2, Heart, RotateCw, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
+import { isSampleGuestbookEntry, formatGuestbookDate } from '../utils/googleSheetsSync';
 
 interface GuestbookPageProps {
   metadata: BrochureMetadata;
@@ -144,8 +145,24 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
 
         {/* Guestbook List Display */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
-          {entries && entries.length > 0 ? (
-            entries.map((entry) => (
+          {(() => {
+            const validEntries = (entries || [])
+              .filter(entry => entry && !isSampleGuestbookEntry(entry) && entry.message && entry.message.trim().length > 0)
+              .map(entry => ({
+                ...entry,
+                name: (entry.name || '익명의 성도').trim(),
+                createdAt: formatGuestbookDate(entry.createdAt || '')
+              }));
+
+            if (validEntries.length === 0) {
+              return (
+                <div className="text-center py-6 text-xs text-[#8b5e3c]/80 font-sans">
+                  아직 작성된 방명록이 없습니다. 첫 번째 축복의 글을 남겨주세요!
+                </div>
+              );
+            }
+
+            return validEntries.map((entry) => (
               <div
                 key={entry.id}
                 className="p-2.5 bg-white/60 hover:bg-white/90 rounded-md border border-[#3d2b1f]/15 shadow-xs transition-colors group"
@@ -155,9 +172,11 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
                     <span className="font-bold text-xs text-[#2a1b0a] font-serif-kr">
                       {entry.name}
                     </span>
-                    <span className="text-[9.5px] text-[#8b5e3c]/70 font-sans">
-                      {entry.createdAt}
-                    </span>
+                    {entry.createdAt && (
+                      <span className="text-[9.5px] text-[#8b5e3c]/70 font-sans">
+                        {entry.createdAt}
+                      </span>
+                    )}
                   </div>
                   {isEditMode && onDeleteEntry && (
                     <button
@@ -173,12 +192,8 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
                   {entry.message}
                 </p>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-6 text-xs text-[#8b5e3c]/80 font-sans">
-              아직 작성된 방명록이 없습니다. 첫 번째 축복의 글을 남겨주세요!
-            </div>
-          )}
+            ));
+          })()}
         </div>
       </div>
 

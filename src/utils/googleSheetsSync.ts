@@ -192,6 +192,52 @@ export function convertCsvRowsToMetadata(rows: string[][]): Partial<BrochureMeta
 }
 
 /**
+ * Checks if a guestbook entry is a legacy sample/mock entry
+ */
+export function isSampleGuestbookEntry(entry: Partial<GuestbookEntry>): boolean {
+  if (!entry) return true;
+  const msg = (entry.message || '').trim();
+  const name = (entry.name || '').trim();
+  const id = (entry.id || '').trim();
+
+  if (!msg) return true; // empty message
+
+  if (id === 'gb-1' || id === 'gb-2') return true;
+  if (
+    msg.includes('창조의 뜻을 묵상하는') ||
+    msg.includes('첫 곡부터 눈물과 감격이') ||
+    msg.includes('인생의 창조목적') ||
+    msg.includes('귀한 찬양 콘서트에 함께할 수 있어')
+  ) {
+    return true;
+  }
+  if ((name === '김하늘' || name === '이은혜') && (msg.includes('은혜입니다') || msg.includes('감격이 넘칩니다'))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Formats messy raw dates (e.g. "Sun Sep 20 2026 18:55:00 GMT+0900") into clean readable format
+ */
+export function formatGuestbookDate(raw: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (trimmed.includes('GMT') || trimmed.includes('한국 표준시') || (trimmed.length > 20 && !trimmed.match(/^\d{4}[-.]/))) {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      return `${year}.${month}.${day} ${hours}:${mins}`;
+    }
+  }
+  return trimmed;
+}
+
+/**
  * Maps parsed CSV rows from '방명록' tab to GuestbookEntry array
  */
 export function convertCsvRowsToGuestbook(rows: string[][]): GuestbookEntry[] {
@@ -201,7 +247,7 @@ export function convertCsvRowsToGuestbook(rows: string[][]): GuestbookEntry[] {
   return dataRows
     .filter(row => row.some(c => c.trim().length > 0))
     .map((row, index) => {
-      const createdAt = row[0] ? row[0].trim() : new Date().toISOString().slice(0, 10);
+      const rawDate = row[0] ? row[0].trim() : '';
       const name = row[1] ? row[1].trim() : '익명의 성도';
       const message = row[2] ? row[2].trim() : '';
 
@@ -209,10 +255,10 @@ export function convertCsvRowsToGuestbook(rows: string[][]): GuestbookEntry[] {
         id: `gb-sheet-${index + 1}`,
         name,
         message,
-        createdAt
+        createdAt: formatGuestbookDate(rawDate) || new Date().toISOString().slice(0, 10)
       };
     })
-    .filter(entry => entry.message.length > 0)
+    .filter(entry => !isSampleGuestbookEntry(entry))
     .reverse(); // 구글 시트의 최하단에 새로 추가된 최신 글이 위로 오도록 역순 정렬
 }
 
@@ -390,12 +436,14 @@ export async function fetchLiveGoogleSheetData(sheetUrl: string): Promise<{
         
         let gbList: GuestbookEntry[] = [];
         if (json.guestbook && Array.isArray(json.guestbook)) {
-          gbList = json.guestbook.map((g: any, idx: number) => ({
-            id: g.id || `gb-sheet-${idx + 1}`,
-            name: g.name || '성도',
-            message: g.message || '',
-            createdAt: g.createdAt || ''
-          })).filter((g: GuestbookEntry) => g.message && g.message.trim().length > 0);
+          gbList = json.guestbook
+            .map((g: any, idx: number) => ({
+              id: g.id || `gb-sheet-${idx + 1}`,
+              name: (g.name || '익명의 성도').trim(),
+              message: (g.message || '').trim(),
+              createdAt: formatGuestbookDate(g.createdAt || '')
+            }))
+            .filter((g: GuestbookEntry) => !isSampleGuestbookEntry(g));
         }
 
         return { items: mappedItems, metadata: json.metadata, guestbook: gbList };
@@ -543,7 +591,7 @@ export function mergeGuestbookEntries(
 
   // 1. Add local newly written entries first (newest at the very top)
   localEntries.forEach(entry => {
-    if (entry && entry.message && entry.message.trim()) {
+    if (entry && !isSampleGuestbookEntry(entry)) {
       const key = `${entry.createdAt || ''}_${entry.name || ''}_${entry.message || ''}`.trim();
       map.set(key, entry);
     }
@@ -551,7 +599,7 @@ export function mergeGuestbookEntries(
 
   // 2. Add remote sheet entries (already in newest-first order)
   sheetEntries.forEach(entry => {
-    if (entry && entry.message && entry.message.trim()) {
+    if (entry && !isSampleGuestbookEntry(entry)) {
       const key = `${entry.createdAt || ''}_${entry.name || ''}_${entry.message || ''}`.trim();
       if (!map.has(key)) {
         map.set(key, entry);

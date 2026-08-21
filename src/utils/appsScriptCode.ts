@@ -173,12 +173,27 @@ function doGet(e) {
       if (gbData.length > 1) {
         for (var g = 1; g < gbData.length; g++) {
           var gRow = gbData[g];
-          if (gRow[1] || gRow[2]) {
+          var msg = String(gRow[2] || "").trim();
+          var name = String(gRow[1] || "성도").trim();
+          var rawDate = gRow[0];
+          var dateStr = "";
+          if (rawDate instanceof Date) {
+            dateStr = formatDate(rawDate);
+          } else {
+            dateStr = String(rawDate || "").trim();
+          }
+
+          // 샘플 찌꺼기 데이터 자동 제외
+          if (msg && 
+              msg.indexOf("창조의 뜻을 묵상하는") === -1 && 
+              msg.indexOf("첫 곡부터 눈물과 감격이") === -1 &&
+              msg.indexOf("인생의 창조목적") === -1 &&
+              msg.indexOf("귀한 찬양 콘서트에 함께할 수 있어") === -1) {
             guestbook.push({
               id: "gb-sheet-" + g,
-              createdAt: String(gRow[0] || ""),
-              name: String(gRow[1] || "성도"),
-              message: String(gRow[2] || "")
+              createdAt: dateStr,
+              name: name || "익명의 성도",
+              message: msg
             });
           }
         }

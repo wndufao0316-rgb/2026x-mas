@@ -6,7 +6,13 @@ import {
 } from 'lucide-react';
 import { BrochureData, ProgramItem, BrochureMetadata, GuestbookEntry } from './types';
 import { initialBrochureData } from './data/defaultProgram';
-import { fetchLiveGoogleSheetData, sendGuestbookEntryToSheet, mergeGuestbookEntries } from './utils/googleSheetsSync';
+import { 
+  fetchLiveGoogleSheetData, 
+  sendGuestbookEntryToSheet, 
+  mergeGuestbookEntries,
+  isSampleGuestbookEntry,
+  formatGuestbookDate
+} from './utils/googleSheetsSync';
 import { sounds } from './utils/soundEffects';
 import { BookCover } from './components/BookCover';
 import { WelcomePage } from './components/WelcomePage';
@@ -22,19 +28,17 @@ import { EditTextModal } from './components/EditTextModal';
 import { EditMetadataModal } from './components/EditMetadataModal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 
-const STORAGE_KEY = 'joshua_jeong_praise_brochure_v4';
+const STORAGE_KEY = 'joshua_jeong_praise_brochure_v5';
 
-// Helper to filter out legacy mock/sample entries
+// Helper to aggressively filter out all legacy mock/sample entries and format dates
 const sanitizeGuestbook = (list?: GuestbookEntry[]): GuestbookEntry[] => {
   if (!Array.isArray(list)) return [];
-  return list.filter(g => 
-    g && 
-    g.id !== 'gb-1' && 
-    g.id !== 'gb-2' && 
-    g.name !== '김하늘' && 
-    g.name !== '이은혜' &&
-    g.message && g.message.trim().length > 0
-  );
+  return list
+    .filter(g => g && !isSampleGuestbookEntry(g))
+    .map(g => ({
+      ...g,
+      createdAt: formatGuestbookDate(g.createdAt || '')
+    }));
 };
 
 export default function App() {
