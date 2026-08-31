@@ -202,16 +202,23 @@ export function isSampleGuestbookEntry(entry: Partial<GuestbookEntry>): boolean 
 
   if (!msg) return true; // empty message
 
+  // Check known sample IDs
   if (id === 'gb-1' || id === 'gb-2') return true;
+
+  // Check sample phrases from default templates/prompts
+  const lowerMsg = msg.toLowerCase();
   if (
     msg.includes('창조의 뜻을 묵상하는') ||
     msg.includes('첫 곡부터 눈물과 감격이') ||
     msg.includes('인생의 창조목적') ||
-    msg.includes('귀한 찬양 콘서트에 함께할 수 있어')
+    msg.includes('귀한 찬양 콘서트에 함께할 수 있어') ||
+    msg.includes('모든 순서마다 하나님의 임재가') ||
+    lowerMsg.includes('sample') ||
+    lowerMsg.includes('test message')
   ) {
     return true;
   }
-  if ((name === '김하늘' || name === '이은혜') && (msg.includes('은혜입니다') || msg.includes('감격이 넘칩니다'))) {
+  if ((name === '김하늘' || name === '이은혜') && (msg.includes('은혜입니다') || msg.includes('감격이 넘칩니다') || msg.includes('축복합니다'))) {
     return true;
   }
   return false;

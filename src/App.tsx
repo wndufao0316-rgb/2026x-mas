@@ -28,7 +28,7 @@ import { EditTextModal } from './components/EditTextModal';
 import { EditMetadataModal } from './components/EditMetadataModal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 
-const STORAGE_KEY = 'joshua_jeong_praise_brochure_v5';
+const STORAGE_KEY = 'joshua_jeong_praise_brochure_v7';
 
 // Helper to aggressively filter out all legacy mock/sample entries and format dates
 const sanitizeGuestbook = (list?: GuestbookEntry[]): GuestbookEntry[] => {
@@ -42,12 +42,28 @@ const sanitizeGuestbook = (list?: GuestbookEntry[]): GuestbookEntry[] => {
 };
 
 export default function App() {
-  // Clear any legacy storage keys from v1-v4 on initial startup
+  // Clear any legacy storage keys and stale guestbook cache on startup
   if (typeof window !== 'undefined') {
     try {
-      ['joshua_jeong_praise_brochure', 'joshua_jeong_praise_brochure_v2', 'joshua_jeong_praise_brochure_v3', 'joshua_jeong_praise_brochure_v4'].forEach(k => {
+      [
+        'joshua_jeong_praise_brochure',
+        'joshua_jeong_praise_brochure_v2',
+        'joshua_jeong_praise_brochure_v3',
+        'joshua_jeong_praise_brochure_v4',
+        'joshua_jeong_praise_brochure_v5',
+        'joshua_jeong_praise_brochure_v6'
+      ].forEach(k => {
         localStorage.removeItem(k);
       });
+      // Also ensure current storage has no lingering guestbook entries
+      const currentSaved = localStorage.getItem(STORAGE_KEY);
+      if (currentSaved) {
+        const parsed = JSON.parse(currentSaved);
+        if (parsed && parsed.guestbook && parsed.guestbook.length > 0) {
+          parsed.guestbook = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        }
+      }
     } catch {
       // ignore
     }
@@ -62,7 +78,7 @@ export default function App() {
         return {
           ...initialBrochureData,
           ...parsed,
-          guestbook: sanitizeGuestbook(parsed.guestbook),
+          guestbook: [], // Always start with empty guestbook, strictly populated from live Google Sheets
           metadata: {
             ...initialBrochureData.metadata,
             ...(parsed.metadata || {})
@@ -146,10 +162,11 @@ export default function App() {
   // 5. Sound Toggle
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
-  // Save to LocalStorage on changes
+  // Save to LocalStorage on changes (excluding guestbook to prevent cross-session zombie records)
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(brochureData));
+      const { guestbook, ...persistData } = brochureData;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...persistData, guestbook: [] }));
     } catch {
       // Storage quota or private browsing fallback
     }
@@ -278,7 +295,7 @@ export default function App() {
               ...prev,
               items: result.items && result.items.length > 0 ? result.items : prev.items,
               metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-              guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : sanitizeGuestbook(prev.guestbook),
+              guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : [],
               googleSheetUrl: prev.googleSheetUrl || url,
               appsScriptUrl: savedScriptUrl || prev.appsScriptUrl,
               lastSynced: new Date().toISOString()
@@ -310,7 +327,7 @@ export default function App() {
           ...prev,
           items: itemCount > 0 ? result.items : prev.items,
           metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
-          guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : sanitizeGuestbook(prev.guestbook),
+          guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : [],
           googleSheetUrl: !isScript ? targetUrl : (prev.googleSheetUrl || targetUrl),
           appsScriptUrl: isScript ? targetUrl : prev.appsScriptUrl,
           lastSynced: new Date().toISOString()
@@ -497,14 +514,15 @@ export default function App() {
     try {
       const liveData = await fetchLiveGoogleSheetData(targetUrl);
       if (liveData && liveData.guestbook !== undefined) {
+        const cleanList = sanitizeGuestbook(liveData.guestbook || []);
         setBrochureData(prev => ({
           ...prev,
-          guestbook: liveData.guestbook || []
+          guestbook: cleanList
         }));
         showToast(
-          liveData.guestbook.length > 0 
-            ? '구글 시트에서 최신 방명록을 성공적으로 동기화했습니다.' 
-            : '구글 시트와 동기화되었습니다. (방명록이 비어있음)',
+          cleanList.length > 0 
+            ? `구글 시트에서 최신 방명록 ${cleanList.length}건을 성공적으로 동기화했습니다.` 
+            : '구글 시트와 동기화되었습니다. (등록된 방명록이 없습니다.)',
           'success'
         );
       } else {

@@ -99,7 +99,7 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="이름 또는 직분 (예: 김은혜 성도)"
+                placeholder="이름 또는 직분 (예: 김은혜)"
                 className="w-full pl-8 pr-2.5 py-1.5 bg-[#fdfaf1] border border-[#3d2b1f]/25 rounded text-xs text-[#2a1b0a] font-sans font-medium focus:outline-none focus:border-[#8b5e3c]"
                 maxLength={20}
               />
