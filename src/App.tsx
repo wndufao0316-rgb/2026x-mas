@@ -182,13 +182,12 @@ export default function App() {
   }, [brochureData.items]);
 
   // Total pages:
-  // 0: Cover
-  // 1: Welcome (Intro I)
-  // 2: Welcome with Photo (Intro II)
-  // 3: Table of Contents (TOC)
-  // 4 ~ 4 + items.length - 1: Program Items
-  // 4 + items.length: Epilogue
-  // 4 + items.length + 1: Guestbook (Final Page)
+  // 0: Cover (표지)
+  // 1: Welcome Intro I (들어가는 말 - PROLOG)
+  // 2: Welcome Intro II (작곡가 소개 - INTRODUCTION)
+  // 3: Table of Contents (행사 순서 - Event Schedule)
+  // 4 ~ 4 + items.length - 1: Program Items (찬양 곡별 상세)
+  // 4 + items.length: Guestbook (방명록 - Final Page)
   const totalPages = 5 + sortedItems.length;
 
   // Touch Swipe Support with Edit-Safety
@@ -454,9 +453,9 @@ export default function App() {
       items: [...prev.items, newItem]
     }));
 
-    // Jump to the newly added item page
+    // Jump to the newly added item page (programs start at page 4)
     setTimeout(() => {
-      goToPage(2 + brochureData.items.length);
+      goToPage(4 + brochureData.items.length);
     }, 100);
   };
 
@@ -721,13 +720,13 @@ export default function App() {
         {/* Left: Concert Mini Badge or TOC Shortcut */}
         <div className="flex items-center space-x-1.5">
           <button
-            onClick={() => goToPage(currentPage === 2 ? 0 : 2)}
+            onClick={() => goToPage(currentPage === 3 ? 0 : 3)}
             className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#3d2b1f] hover:bg-[#2a1b0a] border border-[#8b5e3c]/40 text-[#fdfaf1] transition-all cursor-pointer shadow-xs text-[11px] font-sans"
             title="목차(행사 순서)로 바로가기"
           >
             <ListOrdered className="w-3.5 h-3.5 text-[#dfba73]" />
             <span className="font-semibold tracking-tight">
-              {currentPage === 2 ? '표지로' : '행사 순서'}
+              {currentPage === 3 ? '표지로' : '행사 순서'}
             </span>
           </button>
 
