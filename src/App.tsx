@@ -482,6 +482,7 @@ export default function App() {
 
     // Real-time synchronization with Google Sheets (Apps Script Web App)
     const scriptUrl = brochureData.appsScriptUrl || 
+      initialBrochureData.appsScriptUrl ||
       (brochureData.googleSheetUrl?.includes('script.google.com') ? brochureData.googleSheetUrl : '') ||
       (typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') || '' : '');
       
@@ -493,7 +494,7 @@ export default function App() {
         if (syncResult.success) {
           showToast('방명록이 구글 스프레드시트 3번째 탭(방명록)에 성공적으로 저장되었습니다.', 'success');
         } else if (syncResult.isSpreadsheetOnly) {
-          showToast('방명록이 등록되었습니다. (구글 시트 3번째 탭에 자동 기록되도록 [설정 > 시트 연동]에서 Apps Script 웹앱 URL을 연동해주세요.)', 'info');
+          showToast('⚠️ 구글 시트에 실시간 기록하려면 Apps Script 웹앱 URL 배포가 필요합니다. (현재는 로컬 임시 등록 상태)', 'info');
         }
       } catch (err) {
         console.warn('Real-time guestbook sync error:', err);

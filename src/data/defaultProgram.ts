@@ -2,6 +2,7 @@ import { BrochureData } from '../types';
 
 export const initialBrochureData: BrochureData = {
   googleSheetUrl: "https://docs.google.com/spreadsheets/d/1Dzu4WZ9qJa4Eq_RYQI2dM6xIFEdlzlTmPQ0UT-TJh70/edit?usp=sharing",
+  appsScriptUrl: (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_APPS_SCRIPT_URL) || "",
   metadata: {
     concertSubtitle: "JOSHUA JEONG_PRAISE CONCERT",
     concertTitle: "운명(運命):\n창조의 뜻",
