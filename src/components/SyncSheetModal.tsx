@@ -23,7 +23,7 @@ export const SyncSheetModal: React.FC<SyncSheetModalProps> = ({
   onResetToDefault,
   onImportData
 }) => {
-  const [sheetUrl, setSheetUrl] = useState(brochureData.googleSheetUrl || '');
+  const [sheetUrl, setSheetUrl] = useState(brochureData.appsScriptUrl || brochureData.googleSheetUrl || '');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({

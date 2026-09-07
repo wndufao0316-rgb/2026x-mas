@@ -285,7 +285,7 @@ export default function App() {
   useEffect(() => {
     const autoSync = async () => {
       const savedScriptUrl = typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') : null;
-      const url = savedScriptUrl || brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl;
+      const url = savedScriptUrl || brochureData.appsScriptUrl || initialBrochureData.appsScriptUrl || brochureData.googleSheetUrl || initialBrochureData.googleSheetUrl;
       if (url) {
         try {
           const result = await fetchLiveGoogleSheetData(url);
@@ -295,8 +295,8 @@ export default function App() {
               items: result.items && result.items.length > 0 ? result.items : prev.items,
               metadata: result.metadata ? { ...prev.metadata, ...result.metadata } : prev.metadata,
               guestbook: result.guestbook !== undefined ? sanitizeGuestbook(result.guestbook) : [],
-              googleSheetUrl: prev.googleSheetUrl || url,
-              appsScriptUrl: savedScriptUrl || prev.appsScriptUrl,
+              googleSheetUrl: prev.googleSheetUrl || initialBrochureData.googleSheetUrl,
+              appsScriptUrl: savedScriptUrl || prev.appsScriptUrl || initialBrochureData.appsScriptUrl,
               lastSynced: new Date().toISOString()
             }));
           }
@@ -504,7 +504,7 @@ export default function App() {
 
   // Refresh guestbook from Google Sheet
   const handleRefreshGuestbook = async () => {
-    const targetUrl = brochureData.appsScriptUrl || brochureData.googleSheetUrl || (typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') : null);
+    const targetUrl = brochureData.appsScriptUrl || initialBrochureData.appsScriptUrl || brochureData.googleSheetUrl || (typeof window !== 'undefined' ? localStorage.getItem('brochure_apps_script_url') : null);
     if (!targetUrl) {
       showToast('연동된 구글 시트 URL이 없습니다.', 'error');
       return;
