@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { GuestbookEntry, BrochureMetadata } from '../types';
 import { Send, User, MessageSquare, Trash2, Heart, RotateCw, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
@@ -27,11 +27,13 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
+  const isLockedRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !message.trim() || isSubmitting) return;
+    if (!name.trim() || !message.trim() || isSubmitting || isLockedRef.current) return;
 
+    isLockedRef.current = true;
     setIsSubmitting(true);
     sounds.playChime();
     
@@ -42,7 +44,10 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
       setJustSubmitted(true);
       setTimeout(() => setJustSubmitted(false), 3500);
     } finally {
-      setIsSubmitting(false);
+      setTimeout(() => {
+        isLockedRef.current = false;
+        setIsSubmitting(false);
+      }, 800);
     }
   };
 
@@ -138,7 +143,7 @@ export const GuestbookPage: React.FC<GuestbookPageProps> = ({
           {justSubmitted && (
             <div className="flex items-center gap-1.5 text-[11px] text-green-800 font-sans font-medium pt-0.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-green-700 flex-shrink-0" />
-              <span>방명록이 등록되었습니다. 은혜의 나눔에 감사드립니다.</span>
+              <span>방명록이 기록 되었습니다.</span>
             </div>
           )}
         </form>

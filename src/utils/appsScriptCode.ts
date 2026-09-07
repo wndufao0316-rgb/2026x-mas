@@ -71,12 +71,23 @@ function doGet(e) {
           gbSheet.appendRow(["작성일시", "작성자(이름)", "축복의 메시지"]);
           gbSheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#dfba73").setFontColor("#2a1b0a");
         }
-        gbSheet.appendRow([createdAt, name, message]);
+        // 중복 방지 (직전 행과 작성자 및 메시지가 동일한 경우 추가 방지)
+        var lastRow = gbSheet.getLastRow();
+        var isDuplicate = false;
+        if (lastRow > 1) {
+          var lastVals = gbSheet.getRange(lastRow, 2, 1, 2).getValues()[0];
+          if (String(lastVals[0] || "").trim() === name && String(lastVals[1] || "").trim() === message) {
+            isDuplicate = true;
+          }
+        }
+        if (!isDuplicate) {
+          gbSheet.appendRow([createdAt, name, message]);
+        }
       }
 
       var gbResult = {
         status: "success",
-        message: "방명록이 구글 시트 3번째 탭(방명록)에 성공적으로 등록되었습니다.",
+        message: "방명록이 기록 되었습니다.",
         entry: { name: name, message: message, createdAt: createdAt }
       };
 
@@ -261,12 +272,23 @@ function doPost(e) {
       }
 
       if (message) {
-        gbSheet.appendRow([createdAt, name, message]);
+        // 중복 방지 (직전 행과 작성자 및 메시지가 동일한 경우 추가 방지)
+        var lastRow = gbSheet.getLastRow();
+        var isDuplicate = false;
+        if (lastRow > 1) {
+          var lastVals = gbSheet.getRange(lastRow, 2, 1, 2).getValues()[0];
+          if (String(lastVals[0] || "").trim() === name && String(lastVals[1] || "").trim() === message) {
+            isDuplicate = true;
+          }
+        }
+        if (!isDuplicate) {
+          gbSheet.appendRow([createdAt, name, message]);
+        }
       }
 
       return createJsonResponse({
         status: "success",
-        message: "방명록이 구글 시트 3번째 탭(방명록)에 성공적으로 등록되었습니다!",
+        message: "방명록이 기록 되었습니다.",
         entry: { name: name, message: message, createdAt: createdAt }
       });
     }

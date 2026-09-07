@@ -30,15 +30,32 @@ import { AdminAuthModal } from './components/AdminAuthModal';
 
 const STORAGE_KEY = 'joshua_jeong_praise_brochure_v7';
 
-// Helper to aggressively filter out all legacy mock/sample entries and format dates
+// Helper to aggressively filter out all legacy mock/sample entries, deduplicate identical entries, and format dates
 const sanitizeGuestbook = (list?: GuestbookEntry[]): GuestbookEntry[] => {
   if (!Array.isArray(list)) return [];
-  return list
-    .filter(g => g && !isSampleGuestbookEntry(g))
-    .map(g => ({
+  const seen = new Set<string>();
+  const deduped: GuestbookEntry[] = [];
+
+  for (const g of list) {
+    if (!g || isSampleGuestbookEntry(g)) continue;
+    const cleanName = (g.name || '').trim();
+    const cleanMsg = (g.message || '').trim();
+    if (!cleanMsg) continue;
+
+    // Dedup key: name + message (collapse duplicates into 1 entry)
+    const key = `${cleanName}___${cleanMsg}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    deduped.push({
       ...g,
+      name: cleanName || '익명의 성도',
+      message: cleanMsg,
       createdAt: formatGuestbookDate(g.createdAt || '')
-    }));
+    });
+  }
+
+  return deduped;
 };
 
 export default function App() {
@@ -474,10 +491,10 @@ export default function App() {
       createdAt: formattedDate
     };
 
-    // Immediate local state update for instant UI feedback
+    // Immediate local state update for instant UI feedback (guaranteed deduplicated)
     setBrochureData(prev => ({
       ...prev,
-      guestbook: [newEntry, ...(prev.guestbook || [])]
+      guestbook: sanitizeGuestbook([newEntry, ...(prev.guestbook || [])])
     }));
 
     // Real-time synchronization with Google Sheets (Apps Script Web App)
@@ -490,12 +507,7 @@ export default function App() {
 
     if (effectiveSheetUrl) {
       try {
-        const syncResult = await sendGuestbookEntryToSheet(effectiveSheetUrl, newEntry);
-        if (syncResult.success) {
-          showToast('방명록이 구글 스프레드시트 3번째 탭(방명록)에 성공적으로 저장되었습니다.', 'success');
-        } else if (syncResult.isSpreadsheetOnly) {
-          showToast('⚠️ 구글 시트에 실시간 기록하려면 Apps Script 웹앱 URL 배포가 필요합니다. (현재는 로컬 임시 등록 상태)', 'info');
-        }
+        await sendGuestbookEntryToSheet(effectiveSheetUrl, newEntry);
       } catch (err) {
         console.warn('Real-time guestbook sync error:', err);
       }
